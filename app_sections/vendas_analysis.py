@@ -58,7 +58,7 @@ class VendasAnalysis(BasePage):
                     st.metric("Cursos Únicos", cursos_unicos)
 
             # Métricas adicionais
-            if 'ANO' in vendas_df.columns:
+            if 'ANO' in vendas_df.columns and not vendas_df.empty:  # Adicionado 'and not vendas_df.empty'
                 col5, col6, col7, col8 = st.columns(4)
 
                 with col5:
@@ -71,16 +71,21 @@ class VendasAnalysis(BasePage):
                         st.metric("Meses com Vendas", meses_ativos)
 
                 with col7:
-                    vendas_mes_atual = len(
-                        vendas_df[vendas_df['ANO'] == vendas_df['ANO'].max()])
-                    st.metric("Vendas Ano Atual", vendas_mes_atual)
+                    # Vendas no ano mais recente presente nos dados
+                    ano_mais_recente = vendas_df['ANO'].max()
+                    vendas_ano_recente = len(
+                        vendas_df[vendas_df['ANO'] == ano_mais_recente])
+                    st.metric(f"Vendas em {ano_mais_recente}",
+                              f"{vendas_ano_recente:,}")
 
                 with col8:
-                    if len(vendas_df) > 0:
+                    if 'MES_ANO' in vendas_df.columns and vendas_df['MES_ANO'].nunique() > 0:
                         media_vendas_mes = len(
-                            vendas_df) / vendas_df['MES_ANO'].nunique() if 'MES_ANO' in vendas_df.columns else 0
+                            vendas_df) / vendas_df['MES_ANO'].nunique()
                         st.metric("Média Vendas/Mês",
                                   f"{media_vendas_mes:.1f}")
+                    else:
+                        st.metric("Média Vendas/Mês", "N/A")
 
         except Exception as e:
             st.error(f"Erro ao calcular métricas: {str(e)}")
@@ -89,8 +94,9 @@ class VendasAnalysis(BasePage):
         """Renderiza análise de parcerias"""
         st.subheader("🤝 Análise por Tipo de Parceria")
 
-        if 'TIPO_PARCERIA' not in vendas_df.columns:
-            st.warning("Dados de tipo de parceria não disponíveis.")
+        if 'TIPO_PARCERIA' not in vendas_df.columns or vendas_df.empty:
+            st.warning(
+                "Dados de tipo de parceria não disponíveis ou DataFrame vazio.")
             return
 
         col1, col2 = st.columns([1, 2])
@@ -98,7 +104,8 @@ class VendasAnalysis(BasePage):
         with col1:
             # Filtro de parcerias
             st.subheader("🔍 Filtros")
-            parcerias_disponiveis = sorted(vendas_df['TIPO_PARCERIA'].unique())
+            parcerias_disponiveis = sorted(
+                vendas_df['TIPO_PARCERIA'].dropna().unique())
             parcerias_selecionadas = st.multiselect(
                 "Selecione tipos de parceria:",
                 parcerias_disponiveis,
@@ -108,19 +115,24 @@ class VendasAnalysis(BasePage):
 
             if parcerias_selecionadas:
                 # Estatísticas das parcerias selecionadas
-                vendas_filtradas = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
+                vendas_filtradas_parceria = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
                     parcerias_selecionadas)]
 
                 st.subheader("📊 Estatísticas")
                 for parceria in parcerias_selecionadas:
                     vendas_parceria = len(
                         vendas_df[vendas_df['TIPO_PARCERIA'] == parceria])
-                    percentual = (vendas_parceria / len(vendas_df) * 100)
-                    st.metric(
-                        f"{parceria}",
-                        f"{vendas_parceria:,}",
-                        f"{percentual:.1f}% do total"
-                    )
+                    if vendas_parceria > 0:
+                        percentual = (vendas_parceria / len(vendas_df) * 100)
+                        st.metric(
+                            f"{parceria}",
+                            f"{vendas_parceria:,}",
+                            f"{percentual:.1f}% do total"
+                        )
+                    else:
+                        st.metric(f"{parceria}", "0", "0.0%")
+            else:
+                st.info("Nenhuma parceria selecionada.")
 
         with col2:
             # Gráfico de pizza
@@ -132,13 +144,15 @@ class VendasAnalysis(BasePage):
                     st.plotly_chart(fig_parceria, use_container_width=True)
                 except Exception as e:
                     st.error(f"Erro ao gerar gráfico de parcerias: {str(e)}")
+            else:
+                st.info("Selecione uma ou mais parcerias para visualizar o gráfico.")
 
     def _render_temporal_analysis(self, vendas_df):
         """Renderiza análise temporal"""
         st.subheader("📈 Análise Temporal de Vendas")
 
-        if 'MES_ANO' not in vendas_df.columns:
-            st.warning("Dados temporais não disponíveis.")
+        if 'MES_ANO' not in vendas_df.columns or vendas_df.empty:
+            st.warning("Dados temporais não disponíveis ou DataFrame vazio.")
             return
 
         # Controles
@@ -153,8 +167,9 @@ class VendasAnalysis(BasePage):
 
         with col_control2:
             # Filtros baseados no agrupamento
+            filtros_selecionados = []
             if agrupamento == "modalidade" and 'NIVEL' in vendas_df.columns:
-                opcoes_filtro = sorted(vendas_df['NIVEL'].unique())
+                opcoes_filtro = sorted(vendas_df['NIVEL'].dropna().unique())
                 filtros_selecionados = st.multiselect(
                     "Filtrar modalidades:",
                     opcoes_filtro,
@@ -162,14 +177,17 @@ class VendasAnalysis(BasePage):
                         opcoes_filtro) > 5 else opcoes_filtro
                 )
             elif agrupamento == "parceria" and 'TIPO_PARCERIA' in vendas_df.columns:
-                opcoes_filtro = sorted(vendas_df['TIPO_PARCERIA'].unique())
+                opcoes_filtro = sorted(
+                    vendas_df['TIPO_PARCERIA'].dropna().unique())
                 filtros_selecionados = st.multiselect(
                     "Filtrar parcerias:",
                     opcoes_filtro,
                     default=opcoes_filtro
                 )
-            else:
-                filtros_selecionados = None
+
+        if not filtros_selecionados:
+            st.info("Selecione pelo menos um filtro para o gráfico temporal.")
+            return
 
         # Gráfico temporal
         try:
@@ -181,24 +199,33 @@ class VendasAnalysis(BasePage):
             st.error(f"Erro ao gerar gráfico temporal: {str(e)}")
 
         # Análise de sazonalidade
-        if 'MES_NOME' in vendas_df.columns:
+        if 'MES_NOME' in vendas_df.columns and not vendas_df.empty:
             st.subheader("🌊 Análise de Sazonalidade")
 
             try:
-                vendas_por_mes = vendas_df['MES_NOME'].value_counts()
+                # É importante usar MES_ANO para a contagem e depois MES_NOME para exibição
+                vendas_por_mes_ord = vendas_df.groupby(
+                    'MES_NOME')['CPF'].count().reset_index(name='Vendas')
 
                 # Ordenar meses corretamente
                 ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-                vendas_por_mes = vendas_por_mes.reindex(ordem_meses).fillna(0)
+                vendas_por_mes_ord['MES_NOME'] = pd.Categorical(
+                    vendas_por_mes_ord['MES_NOME'],
+                    categories=ordem_meses,
+                    ordered=True
+                )
+                vendas_por_mes_ord = vendas_por_mes_ord.sort_values(
+                    'MES_NOME').fillna(0)
 
                 fig_sazonalidade = px.bar(
-                    x=vendas_por_mes.index,
-                    y=vendas_por_mes.values,
+                    vendas_por_mes_ord,
+                    x='MES_NOME',
+                    y='Vendas',
                     title='Vendas por Mês (Sazonalidade)',
-                    labels={'x': 'Mês', 'y': 'Número de Vendas'},
-                    color=vendas_por_mes.values,
+                    labels={'MES_NOME': 'Mês', 'Vendas': 'Número de Vendas'},
+                    color='Vendas',
                     color_continuous_scale='Viridis'
                 )
 
@@ -210,16 +237,21 @@ class VendasAnalysis(BasePage):
                 st.plotly_chart(fig_sazonalidade, use_container_width=True)
 
                 # Insights de sazonalidade
-                mes_maior_venda = vendas_por_mes.idxmax()
-                mes_menor_venda = vendas_por_mes.idxmin()
+                if not vendas_por_mes_ord.empty:
+                    mes_maior_venda = vendas_por_mes_ord.loc[vendas_por_mes_ord['Vendas'].idxmax(
+                    )]['MES_NOME']
+                    mes_menor_venda = vendas_por_mes_ord.loc[vendas_por_mes_ord['Vendas'].idxmin(
+                    )]['MES_NOME']
 
-                col_insight1, col_insight2 = st.columns(2)
-                with col_insight1:
-                    st.success(
-                        f"🔥 **Pico de vendas**: {mes_maior_venda} ({vendas_por_mes.max():,} vendas)")
-                with col_insight2:
-                    st.info(
-                        f"📉 **Menor volume**: {mes_menor_venda} ({vendas_por_mes.min():,} vendas)")
+                    col_insight1, col_insight2 = st.columns(2)
+                    with col_insight1:
+                        st.success(
+                            f"🔥 **Pico de vendas**: {mes_maior_venda} ({vendas_por_mes_ord['Vendas'].max():,} vendas)")
+                    with col_insight2:
+                        st.info(
+                            f"📉 **Menor volume**: {mes_menor_venda} ({vendas_por_mes_ord['Vendas'].min():,} vendas)")
+                else:
+                    st.info("Dados insuficientes para análise de sazonalidade.")
 
             except Exception as e:
                 st.error(f"Erro na análise de sazonalidade: {str(e)}")
@@ -227,6 +259,11 @@ class VendasAnalysis(BasePage):
     def _render_courses_modalities_analysis(self, vendas_df):
         """Renderiza análise de cursos e modalidades"""
         st.subheader("📚 Análise de Cursos e Modalidades")
+
+        if vendas_df.empty:
+            st.warning(
+                "Dados de vendas não disponíveis para análise de cursos e modalidades.")
+            return
 
         col1, col2 = st.columns(2)
 
@@ -238,7 +275,7 @@ class VendasAnalysis(BasePage):
                 "Número de cursos por parceria:",
                 [5, 10, 15, 20],
                 index=1,
-                key="top_cursos"
+                key="top_cursos_parceria_select"  # Adicionado key única
             )
 
             try:
@@ -247,7 +284,8 @@ class VendasAnalysis(BasePage):
                 )
                 st.plotly_chart(fig_cursos_parceria, use_container_width=True)
             except Exception as e:
-                st.error(f"Erro ao gerar gráfico de cursos: {str(e)}")
+                st.error(
+                    f"Erro ao gerar gráfico de top cursos por parceria: {str(e)}")
 
         with col2:
             # Modalidades por mês
@@ -258,10 +296,11 @@ class VendasAnalysis(BasePage):
                     vendas_df)
                 st.plotly_chart(fig_modalidades_mes, use_container_width=True)
             except Exception as e:
-                st.error(f"Erro ao gerar gráfico de modalidades: {str(e)}")
+                st.error(
+                    f"Erro ao gerar gráfico de modalidades por mês: {str(e)}")
 
         # Análise detalhada de modalidades
-        if 'NIVEL' in vendas_df.columns:
+        if 'NIVEL' in vendas_df.columns and not vendas_df.empty:  # Adicionado 'and not vendas_df.empty'
             st.subheader("📋 Ranking de Modalidades")
 
             modalidades_ranking = vendas_df['NIVEL'].value_counts(
@@ -281,10 +320,18 @@ class VendasAnalysis(BasePage):
                 use_container_width=True,
                 hide_index=True
             )
+        else:
+            st.info("Dados de modalidades não disponíveis para ranking.")
 
     def _render_comparative_analysis(self, vendas_df):
-        """Renderiza análise comparativa"""
-        st.subheader("⚖️ Análise Comparativa")
+        """Renderiza análise comparativa (gráficos de barras)"""
+        st.subheader(
+            "⚖️ Análise Comparativa (Barras)")  # Renomeado para clareza
+
+        if vendas_df.empty:
+            st.warning(
+                "Dados de vendas não disponíveis para análise comparativa.")
+            return
 
         # Controles de comparação
         col_comp1, col_comp2, col_comp3 = st.columns(3)
@@ -293,64 +340,73 @@ class VendasAnalysis(BasePage):
             tipo_comparacao = st.selectbox(
                 "Tipo de comparação:",
                 ["meses", "parcerias", "modalidades"],
+                key="tipo_comparacao_select",  # Adicionado key única
                 help="Escolha o que deseja comparar"
             )
 
         # Definir opções baseadas no tipo
+        opcoes = []
         if tipo_comparacao == "meses" and 'MES_NOME' in vendas_df.columns:
-            opcoes = sorted(vendas_df['MES_NOME'].unique())
+            opcoes = sorted(vendas_df['MES_NOME'].dropna().unique())
         elif tipo_comparacao == "parcerias" and 'TIPO_PARCERIA' in vendas_df.columns:
-            opcoes = sorted(vendas_df['TIPO_PARCERIA'].unique())
+            opcoes = sorted(vendas_df['TIPO_PARCERIA'].dropna().unique())
         elif tipo_comparacao == "modalidades" and 'NIVEL' in vendas_df.columns:
-            opcoes = sorted(vendas_df['NIVEL'].unique())
-        else:
-            opcoes = []
+            opcoes = sorted(vendas_df['NIVEL'].dropna().unique())
 
-        if len(opcoes) >= 2:
-            with col_comp2:
-                periodo1 = st.selectbox(
-                    f"Primeiro {tipo_comparacao[:-1]}:",
-                    opcoes,
-                    key="periodo1"
-                )
-
-            with col_comp3:
-                opcoes_periodo2 = [opt for opt in opcoes if opt != periodo1]
-                periodo2 = st.selectbox(
-                    f"Segundo {tipo_comparacao[:-1]}:",
-                    opcoes_periodo2,
-                    key="periodo2"
-                )
-
-            # Gerar comparação
-            if periodo1 and periodo2:
-                try:
-                    fig_comparacao = self.viz.create_sales_comparison_chart(
-                        vendas_df, tipo_comparacao, periodo1, periodo2
-                    )
-                    st.plotly_chart(fig_comparacao, use_container_width=True)
-
-                    # Insights da comparação
-                    self._display_comparison_insights(
-                        vendas_df, tipo_comparacao, periodo1, periodo2)
-
-                except Exception as e:
-                    st.error(f"Erro ao gerar comparação: {str(e)}")
-        else:
+        if len(opcoes) < 2:
             st.info(
                 f"Dados insuficientes para comparação de {tipo_comparacao}.")
+            return
 
-    def _display_comparison_insights(self, vendas_df, tipo_comparacao, periodo1, periodo2):
+        with col_comp2:
+            periodo1 = st.selectbox(
+                f"Primeiro {'mês' if tipo_comparacao == 'meses' else 'parceria' if tipo_comparacao == 'parcerias' else 'modalidade'}:",
+                opcoes,
+                key="periodo1_select"  # Adicionado key única
+            )
+
+        with col_comp3:
+            opcoes_periodo2 = [opt for opt in opcoes if opt != periodo1]
+            if not opcoes_periodo2:
+                st.info(
+                    f"Não há segundo {tipo_comparacao[:-1]} disponível para comparação.")
+                return
+
+            periodo2 = st.selectbox(
+                f"Segundo {'mês' if tipo_comparacao == 'meses' else 'parceria' if tipo_comparacao == 'parcerias' else 'modalidade'}:",
+                opcoes_periodo2,
+                key="periodo2_select"  # Adicionado key única
+            )
+
+        # Gerar comparação
+        if periodo1 and periodo2:
+            try:
+                fig_comparacao = self.viz.create_sales_comparison_chart(
+                    vendas_df, tipo_comparacao, periodo1, periodo2
+                )
+                st.plotly_chart(fig_comparacao, use_container_width=True)
+
+                # Insights da comparação
+                self._display_comparison_insights(
+                    vendas_df, tipo_comparacao, periodo1, periodo2)
+
+            except Exception as e:
+                st.error(f"Erro ao gerar comparação: {str(e)}")
+
+    def _display_comparison_insights(self, vendas_df: pd.DataFrame, tipo_comparacao: str, periodo1: str, periodo2: str):
         """Exibe insights da comparação"""
         try:
+            vendas_p1 = 0
+            vendas_p2 = 0
+
             if tipo_comparacao == "meses":
                 vendas_p1 = len(vendas_df[vendas_df['MES_NOME'] == periodo1])
                 vendas_p2 = len(vendas_df[vendas_df['MES_NOME'] == periodo2])
             elif tipo_comparacao == "parcerias":
                 vendas_p1 = len(
-                    vendas_df[vendas_df['TIPO_PARCERIA'] == periodo1])
+                    vendas_df[vendas_df['TIPO_PARCERIA'] == period1])
                 vendas_p2 = len(
-                    vendas_df[vendas_df['TIPO_PARCERIA'] == periodo2])
+                    vendas_df[vendas_df['TIPO_PARCERIA'] == period2])
             else:  # modalidades
                 vendas_p1 = len(vendas_df[vendas_df['NIVEL'] == periodo1])
                 vendas_p2 = len(vendas_df[vendas_df['NIVEL'] == periodo2])
@@ -392,10 +448,41 @@ class VendasAnalysis(BasePage):
                 "Dados de vendas não disponíveis para análise detalhada de comparação.")
             return
 
+        # NOVO: Filtro por Tipo de Parceria
+        st.markdown("#### Filtrar por Tipo de Parceria")
+        available_partnership_types = sorted(
+            vendas_df['TIPO_PARCERIA'].dropna().unique().tolist())
+        selected_partnership_types_filter = st.multiselect(
+            "Selecione o(s) tipo(s) de parceria(s) a incluir:",
+            available_partnership_types,
+            default=available_partnership_types,  # Seleciona todos por padrão
+            key="detailed_comp_partnership_filter"
+        )
+
+        # Filtrar o DataFrame de vendas com base na seleção
+        if selected_partnership_types_filter:
+            vendas_df_filtered_by_partnership = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
+                selected_partnership_types_filter)]
+        else:
+            st.info(
+                "Nenhum tipo de parceria selecionado. Por favor, selecione para ver a análise.")
+            return
+
+        if vendas_df_filtered_by_partnership.empty:
+            st.info("Nenhum dado encontrado para os tipos de parceria selecionados.")
+            return
+
+        st.markdown("---")  # Separador visual
+        st.markdown("#### Selecione os Critérios de Comparação")
+
         comparison_options = {
             "Entre Tipos de Parceria": "tipos_parceria",
             "Mesmo Mês em Anos Diferentes": "mesmo_mes_anos_diferentes"
         }
+
+        # Removendo "Entre Parceiros Específicos (por Aluno)" para evitar complexidade com o novo filtro de parceria
+        # Se você quiser reintroduzi-lo, precisará de uma lógica mais complexa para combinar os filtros.
+        # "Entre Parceiros Específicos (por Aluno)": "parceiros_especificos",
 
         selected_comparison_type_label = st.selectbox(
             "Escolha o tipo de comparação:",
@@ -408,28 +495,17 @@ class VendasAnalysis(BasePage):
         item1 = None
         item2 = None
 
-        if comparison_key == "parceiros_especificos":
-            # Usar 'ALUNO' como proxy para parceiros/clientes específicos
-            available_partners = sorted(
-                vendas_df['ALUNO'].dropna().unique().tolist())
-            if len(available_partners) < 2:
-                st.info(
-                    "Dados insuficientes para comparar parceiros específicos (pelo menos 2 alunos únicos necessários).")
-                return
-            col1, col2 = st.columns(2)
-            with col1:
-                item1 = st.selectbox("Selecione o primeiro aluno/parceiro:",
-                                     available_partners, key="partner1_comp_select")
-            with col2:
-                item2 = st.selectbox("Selecione o segundo aluno/parceiro:", [
-                                     p for p in available_partners if p != item1], key="partner2_comp_select")
+        # A lógica de seleção de item1 e item2 agora usa 'vendas_df_filtered_by_partnership'
+        # e é adaptada aos tipos de comparação restantes.
 
-        elif comparison_key == "tipos_parceria":
+        if comparison_key == "tipos_parceria":
+            # Aqui, as opções para seleção de tipo de parceria já são os tipos filtrados
             available_types = sorted(
-                vendas_df['TIPO_PARCERIA'].dropna().unique().tolist())
+                vendas_df_filtered_by_partnership['TIPO_PARCERIA'].dropna().unique().tolist())
+
             if len(available_types) < 2:
                 st.info(
-                    "Dados insuficientes para comparar tipos de parceria (pelo menos 2 tipos de parceria únicos necessários).")
+                    "Dados insuficientes para comparar tipos de parceria (pelo menos 2 tipos de parceria únicos necessários no filtro acima).")
                 return
             col1, col2 = st.columns(2)
             with col1:
@@ -440,23 +516,22 @@ class VendasAnalysis(BasePage):
                                      t for t in available_types if t != item1], key="type2_comp_select")
 
         elif comparison_key == "mesmo_mes_anos_diferentes":
-            # Obter meses únicos (ex: 'Janeiro', 'Fevereiro')
             available_months = sorted(
-                vendas_df['MES_NOME'].dropna().unique().tolist())
+                vendas_df_filtered_by_partnership['MES_NOME'].dropna().unique().tolist())
             if not available_months:
-                st.info("Nenhum mês disponível para comparação de anos.")
+                st.info(
+                    "Nenhum mês disponível para comparação de anos para os tipos de parceria selecionados.")
                 return
 
             selected_month = st.selectbox(
                 "Selecione o mês para comparar:", available_months, key="month_for_year_comp_select")
 
-            # Obter anos disponíveis para o mês selecionado
             available_years_for_month = sorted(
-                vendas_df[vendas_df['MES_NOME'] == selected_month]['ANO'].dropna().unique().astype(int).tolist())
+                vendas_df_filtered_by_partnership[vendas_df_filtered_by_partnership['MES_NOME'] == selected_month]['ANO'].dropna().unique().astype(int).tolist())
 
             if len(available_years_for_month) < 2:
                 st.info(
-                    f"Dados insuficientes para comparar anos no mês de {selected_month} (pelo menos 2 anos com dados neste mês necessários).")
+                    f"Dados insuficientes para comparar anos no mês de {selected_month} (pelo menos 2 anos com dados neste mês e tipos de parceria selecionados necessários).")
                 return
 
             col1, col2 = st.columns(2)
@@ -464,28 +539,28 @@ class VendasAnalysis(BasePage):
                 year1 = st.selectbox(
                     f"Selecione o primeiro ano para {selected_month}:", available_years_for_month, key="year1_comp_select")
             with col2:
-                # Filtrar para garantir que o segundo ano não seja o mesmo que o primeiro
                 years_for_second_select = [
                     y for y in available_years_for_month if y != year1]
-                if not years_for_second_select:  # Caso só haja um ano
+                if not years_for_second_select:
                     st.warning("Não há outro ano para comparar neste mês.")
                     return
                 year2 = st.selectbox(
                     f"Selecione o segundo ano para {selected_month}:", years_for_second_select, key="year2_comp_select")
 
-            # Formato para passar para o visualizations
             item1 = f"{selected_month} - {year1}"
             item2 = f"{selected_month} - {year2}"
 
         # Renderizar gráfico se os itens forem selecionados
         if item1 and item2:
             try:
+                # Passa o DataFrame JÁ FILTRADO pelo tipo de parceria
                 fig = self.viz.create_detailed_sales_comparison_timeline(
-                    vendas_df, comparison_key, item1, item2)
+                    vendas_df_filtered_by_partnership, comparison_key, item1, item2)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(
                     f"Erro ao gerar o gráfico de comparação detalhada: {str(e)}")
                 st.exception(e)  # Para ver o stack trace completo
         else:
-            st.info("Selecione os itens para realizar a comparação detalhada.")
+            st.info(
+                "Selecione os critérios de comparação acima para visualizar o gráfico.")
