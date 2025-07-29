@@ -15,7 +15,8 @@ class Visualizations:
     def __init__(self, colors: Dict[str, str]):
         self.colors = colors
 
-    def create_polos_map(self, polos_df: pd.DataFrame, map_config: Dict) -> folium.Map:
+    def create_polos_map(
+            self, polos_df: pd.DataFrame, map_config: Dict) -> folium.Map:
         """Cria mapa interativo dos polos"""
         m = folium.Map(
             location=[map_config['center_lat'], map_config['center_lon']],

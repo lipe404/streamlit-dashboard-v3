@@ -1,7 +1,9 @@
+# Imports internos
 from utils.visualizations import Visualizations
 from utils.data_processor import DataProcessor
 from utils.data_loader import GoogleSheetsLoader
 from config import GOOGLE_SHEETS_CONFIG, COLORS, MAP_CONFIG
+# Imports externos
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,14 +15,12 @@ from streamlit_folium import st_folium
 import warnings
 warnings.filterwarnings('ignore')
 
-# Importar configurações e utilitários
-
 # Configuração da página
 st.set_page_config(
-    page_title="Dashboard Análise de Polos e Alunos",
-    page_icon="🎓",
+    page_title="Dashboard de Análise Macro",
+    page_icon="🌍",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # CSS customizado
@@ -183,7 +183,7 @@ def main():
         else:
             st.warning("Dados dos polos não disponíveis.")
 
-        # Seção 2: Análise de Municípios e Alunos
+    # Seção 2: Análise de Municípios e Alunos
     elif selected_section == "📊 Análise de Municípios e Alunos":
         st.markdown(
             '<h2 class="section-header">📊 Análise de Municípios e Alunos</h2>', unsafe_allow_html=True)
