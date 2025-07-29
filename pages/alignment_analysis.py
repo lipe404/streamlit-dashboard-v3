@@ -10,8 +10,9 @@ class AlignmentAnalysis(BasePage):
     """Página de análise de alinhamento de polos"""
 
     def render(self, polos_df, municipios_df, alunos_df):
-        st.markdown('<h2 class="section-header">🔄 Análise de Alinhamento de Polos</h2>',
-                    unsafe_allow_html=True)
+        st.markdown(
+            '<h2 class="section-header">🔄 Análise de Alinhamento de Polos</h2>',
+            unsafe_allow_html=True)
 
         if not (self.check_data_availability(alunos_df, "alunos") and
                 'POLO' in alunos_df.columns and 'POLO_MAIS_PROXIMO' in alunos_df.columns):
@@ -44,7 +45,8 @@ class AlignmentAnalysis(BasePage):
 
         with col2:
             # Métricas de alinhamento
-            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df['POLO_MAIS_PROXIMO']
+            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df[
+                'POLO_MAIS_PROXIMO']
             total_alunos = len(alunos_df)
             alinhados = alunos_df['ALINHADO'].sum()
             desalinhados = total_alunos - alinhados
@@ -84,7 +86,8 @@ class AlignmentAnalysis(BasePage):
             # Mostrar apenas os top polos para melhor visualização
             top_polos_origem = desalinhados_df['POLO'].value_counts().head(
                 10).index
-            top_polos_destino = desalinhados_df['POLO_MAIS_PROXIMO'].value_counts().head(
+            top_polos_destino = desalinhados_df[
+                'POLO_MAIS_PROXIMO'].value_counts().head(
                 10).index
 
             # Filtrar matriz
@@ -115,17 +118,20 @@ class AlignmentAnalysis(BasePage):
         st.subheader("📍 Desalinhamento por Estado")
 
         if 'UF' in alunos_df.columns:
-            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df['POLO_MAIS_PROXIMO']
+            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df[
+                'POLO_MAIS_PROXIMO']
 
             desalinhamento_uf = alunos_df.groupby('UF').agg({
                 'ALINHADO': ['count', 'sum']
             }).round(2)
 
             desalinhamento_uf.columns = ['Total_Alunos', 'Alinhados']
-            desalinhamento_uf['Desalinhados'] = desalinhamento_uf['Total_Alunos'] - \
+            desalinhamento_uf['Desalinhados'] = desalinhamento_uf[
+                'Total_Alunos'] - \
                 desalinhamento_uf['Alinhados']
             desalinhamento_uf['Taxa_Alinhamento'] = (
-                desalinhamento_uf['Alinhados'] / desalinhamento_uf['Total_Alunos']) * 100
+                desalinhamento_uf['Alinhados'] / desalinhamento_uf[
+                    'Total_Alunos']) * 100
             desalinhamento_uf = desalinhamento_uf.reset_index()
 
             col1, col2 = st.columns(2)
@@ -188,7 +194,9 @@ class AlignmentAnalysis(BasePage):
                             location=[float(lat_val), float(lng_val)],
                             popup=f"<b>{polo.get('UNIDADE', 'N/A')}</b>",
                             icon=folium.Icon(
-                                color='blue', icon='graduation-cap', prefix='fa')
+                                color='blue',
+                                icon='graduation-cap',
+                                prefix='fa')
                         ).add_to(m)
                 except:
                     continue
@@ -213,9 +221,11 @@ class AlignmentAnalysis(BasePage):
 
                             if aluno_lat != 0 and aluno_lng != 0:
                                 # Encontrar coordenadas do polo atual e ideal
-                                polo_atual_coords = polos_df[polos_df['UNIDADE'] == aluno.get(
+                                polo_atual_coords = polos_df[polos_df[
+                                    'UNIDADE'] == aluno.get(
                                     'POLO', '')]
-                                polo_ideal_coords = polos_df[polos_df['UNIDADE'] == aluno.get(
+                                polo_ideal_coords = polos_df[polos_df[
+                                    'UNIDADE'] == aluno.get(
                                     'POLO_MAIS_PROXIMO', '')]
 
                                 if not polo_atual_coords.empty and not polo_ideal_coords.empty:
@@ -231,8 +241,10 @@ class AlignmentAnalysis(BasePage):
 
                                         # Linha vermelha: aluno -> polo atual
                                         folium.PolyLine(
-                                            locations=[[aluno_lat, aluno_lng], [
-                                                polo_atual_lat, polo_atual_lng]],
+                                            locations=[[
+                                                aluno_lat, aluno_lng], [
+                                                polo_atual_lat, polo_atual_lng
+                                                ]],
                                             color='red',
                                             weight=2,
                                             opacity=0.6
@@ -240,8 +252,10 @@ class AlignmentAnalysis(BasePage):
 
                                         # Linha verde: aluno -> polo ideal
                                         folium.PolyLine(
-                                            locations=[[aluno_lat, aluno_lng], [
-                                                polo_ideal_lat, polo_ideal_lng]],
+                                            locations=[[
+                                                aluno_lat, aluno_lng], [
+                                                polo_ideal_lat, polo_ideal_lng
+                                                ]],
                                             color='green',
                                             weight=2,
                                             opacity=0.6,
@@ -256,7 +270,8 @@ class AlignmentAnalysis(BasePage):
             legend_html = '''
             <div style="position: fixed;
                        bottom: 50px; left: 50px; width: 200px; height: 80px;
-                       background-color: white; border:2px solid grey; z-index:9999;
+                       background-color: white;
+                       border:2px solid grey; z-index:9999;
                        font-size:14px; padding: 10px">
             <p><b>Legenda:</b></p>
             <p><span style="color:red;">━━━</span> Polo Atual</p>
@@ -268,4 +283,5 @@ class AlignmentAnalysis(BasePage):
             st_folium(m, width=700, height=500)
         else:
             st.info(
-                "Dados de coordenadas não disponíveis para criar o mapa de conexões.")
+                "Dados  não disponíveis para criar o mapa de conexões."
+                )

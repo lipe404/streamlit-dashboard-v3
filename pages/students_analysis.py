@@ -38,8 +38,9 @@ class StudentsAnalysis(BasePage):
             if 'REGIAO' in alunos_df.columns:
                 st.subheader("🌎 Alunos por Região")
                 alunos_regiao = alunos_df['REGIAO'].value_counts()
-                fig_regiao = px.pie(values=alunos_regiao.values, names=alunos_regiao.index,
-                                    title='Distribuição de Alunos por Região')
+                fig_regiao = px.pie(
+                    values=alunos_regiao.values, names=alunos_regiao.index,
+                    title='Distribuição de Alunos por Região')
                 st.plotly_chart(fig_regiao, use_container_width=True)
 
     def _render_uf_analysis(self, alunos_df):
@@ -93,12 +94,15 @@ class StudentsAnalysis(BasePage):
                     # Adicionar polos ao mapa
                     if not polos_df.empty:
                         for _, polo in polos_df.iterrows():
-                            if pd.notna(polo['lat']) and pd.notna(polo['long']):
+                            if pd.notna(polo['lat']) and pd.notna(
+                                    polo['long']):
                                 folium.Marker(
                                     location=[polo['lat'], polo['long']],
                                     popup=f"<b>{polo['UNIDADE']}</b>",
                                     icon=folium.Icon(
-                                        color='red', icon='graduation-cap', prefix='fa')
+                                        color='red',
+                                        icon='graduation-cap',
+                                        prefix='fa')
                                 ).add_to(m)
 
                     st_folium(m, width=700, height=500)

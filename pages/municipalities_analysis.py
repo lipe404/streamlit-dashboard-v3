@@ -32,7 +32,8 @@ class MunicipalitiesAnalysis(BasePage):
             try:
                 if 'TOTAL_ALUNOS' in municipios_df.columns and 'MUNICIPIO_IBGE' in municipios_df.columns:
                     # Filtrar municípios com alunos > 0
-                    municipios_com_alunos = municipios_df[municipios_df['TOTAL_ALUNOS'] > 0]
+                    municipios_com_alunos = municipios_df[municipios_df[
+                        'TOTAL_ALUNOS'] > 0]
 
                     if not municipios_com_alunos.empty:
                         top_cidades = municipios_com_alunos.nlargest(
@@ -69,7 +70,8 @@ class MunicipalitiesAnalysis(BasePage):
                 if 'UF' in municipios_df.columns and 'TOTAL_ALUNOS' in municipios_df.columns:
                     alunos_por_uf = municipios_df.groupby(
                         'UF')['TOTAL_ALUNOS'].sum().reset_index()
-                    alunos_por_uf = alunos_por_uf[alunos_por_uf['TOTAL_ALUNOS'] > 0]
+                    alunos_por_uf = alunos_por_uf[alunos_por_uf[
+                        'TOTAL_ALUNOS'] > 0]
 
                     if not alunos_por_uf.empty:
                         fig_uf = px.bar(
@@ -135,7 +137,8 @@ class MunicipalitiesAnalysis(BasePage):
             try:
                 if 'DISTANCIA_KM' in municipios_df.columns and 'UF' in municipios_df.columns:
                     # Filtrar dados válidos
-                    dados_validos = municipios_df[municipios_df['DISTANCIA_KM'] > 0]
+                    dados_validos = municipios_df[municipios_df[
+                        'DISTANCIA_KM'] > 0]
 
                     if not dados_validos.empty and len(dados_validos) > 10:
                         fig_boxplot = px.box(
@@ -187,7 +190,7 @@ class MunicipalitiesAnalysis(BasePage):
                     st.plotly_chart(fig_corr, use_container_width=True)
                 else:
                     st.info(
-                        "Dados insuficientes para gerar a matriz de correlação.")
+                        "Dados insuficientes para gerar a matriz.")
             else:
                 st.info("Colunas numéricas insuficientes para correlação.")
         except Exception as e:

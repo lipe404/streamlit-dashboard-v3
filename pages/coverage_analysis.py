@@ -35,7 +35,8 @@ class CoverageAnalysis(BasePage):
 
         with col1:
             st.metric("Municípios Cobertos",
-                      f"{metrics.get('municipios_cobertos', 0)}/{metrics.get('total_municipios', 0)}")
+                      f"{metrics.get('municipios_cobertos', 0)}/{
+                          metrics.get('total_municipios', 0)}")
 
         with col2:
             st.metric("% Cobertura",
@@ -47,7 +48,8 @@ class CoverageAnalysis(BasePage):
 
         with col4:
             eficiencia = metrics.get(
-                'alunos_cobertos', 0) / len(polos_df) if len(polos_df) > 0 else 0
+                'alunos_cobertos', 0) / len(polos_df) if len(
+                    polos_df) > 0 else 0
             st.metric("Alunos por Polo", f"{eficiencia:.0f}")
 
     def _render_coverage_map(self, polos_df, municipios_df):
@@ -72,18 +74,21 @@ class CoverageAnalysis(BasePage):
                 'Região', 'Total Alunos', 'Distância Média', 'Municípios']
 
             # Calcular eficiência (alunos por município)
-            eficiencia_regiao['Eficiência'] = eficiencia_regiao['Total Alunos'] / \
+            eficiencia_regiao['Eficiência'] = eficiencia_regiao[
+                'Total Alunos'] / \
                 eficiencia_regiao['Municípios']
 
             col1, col2 = st.columns(2)
 
             with col1:
-                fig_regiao_alunos = px.bar(eficiencia_regiao, x='Região', y='Total Alunos',
-                                           title='Total de Alunos por Região')
+                fig_regiao_alunos = px.bar(
+                    eficiencia_regiao, x='Região', y='Total Alunos',
+                    title='Total de Alunos por Região')
                 st.plotly_chart(fig_regiao_alunos, use_container_width=True)
 
             with col2:
-                fig_regiao_dist = px.bar(eficiencia_regiao, x='Região', y='Distância Média',
+                fig_regiao_dist = px.bar(
+                    eficiencia_regiao, x='Região', y='Distância Média',
                                          title='Distância Média por Região')
                 st.plotly_chart(fig_regiao_dist, use_container_width=True)
 
