@@ -109,7 +109,8 @@ class Visualizations:
 
         def style_function(feature):
             """Define o estilo de cada município baseado na cobertura"""
-            municipio_nome = feature['properties'].get('name', '').upper().strip()
+            municipio_nome = feature['properties'].get(
+                'name', '').upper().strip()
             distancia = feature['properties'].get('distancia_km', 999)
 
             # Determinar cor
@@ -149,7 +150,8 @@ class Visualizations:
             popup=folium.GeoJsonPopup(
                 fields=['name', 'uf', 'total_alunos',
                         'distancia_km', 'polo_proximo'],
-                aliases=['Município:', 'UF:', 'Total Alunos:', 'Distância (km):', 'Polo Próximo:'],
+                aliases=['Município:', 'UF:', 'Total Alunos:',
+                         'Distância (km):', 'Polo Próximo:'],
                 localize=True,
                 labels=True,
                 style="background-color: white; color: black; font-family: arial; font-size: 12px; padding: 10px;"
@@ -836,3 +838,260 @@ class Visualizations:
             return fig
         except:
             return go.Figure()
+
+    def create_students_vs_polos_comparison(
+            self, municipios_df: pd.DataFrame, polos_df: pd.DataFrame,
+            filter_type: str = "UF", filter_value: str = "Todos") -> go.Figure:
+        """Cria gráfico mesclado comparativo de alunos vs polos por filtro"""
+
+        if municipios_df.empty or polos_df.empty:
+            return go.Figure()
+
+        try:
+            # Filtrar dados baseado no filtro selecionado
+            if filter_value != "Todos":
+                if filter_type == "UF":
+                    municipios_filtered = municipios_df[municipios_df['UF']
+                                                        == filter_value]
+                    polos_filtered = polos_df[polos_df['UF'] == filter_value]
+                else:  # REGIAO
+                    municipios_filtered = municipios_df[municipios_df['REGIAO']
+                                                        == filter_value]
+                    polos_filtered = polos_df[polos_df['REGIAO']
+                                              == filter_value]
+            else:
+                municipios_filtered = municipios_df.copy()
+                polos_filtered = polos_df.copy()
+
+            if municipios_filtered.empty or polos_filtered.empty:
+                return go.Figure().add_annotation(
+                    text="Nenhum dado encontrado para o filtro selecionado",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=16)
+                )
+
+            # Agrupar dados por UF ou REGIAO
+            group_col = filter_type if filter_type in [
+                'UF', 'REGIAO'] else 'UF'
+
+            # Calcular total de alunos por grupo
+            alunos_por_grupo = municipios_filtered.groupby(
+                group_col)['TOTAL_ALUNOS'].sum().reset_index()
+            alunos_por_grupo = alunos_por_grupo[alunos_por_grupo['TOTAL_ALUNOS'] > 0]
+
+            # Calcular total de polos por grupo
+            polos_por_grupo = polos_filtered.groupby(
+                group_col).size().reset_index(name='TOTAL_POLOS')
+
+            # Merge dos dados
+            dados_comparacao = pd.merge(
+                alunos_por_grupo, polos_por_grupo, on=group_col, how='outer').fillna(0)
+
+            if dados_comparacao.empty:
+                return go.Figure().add_annotation(
+                    text="Nenhum dado para comparação",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=16)
+                )
+
+            # Ordenar por total de alunos
+            dados_comparacao = dados_comparacao.sort_values(
+                'TOTAL_ALUNOS', ascending=True)
+
+            # Calcular eficiência (alunos por polo)
+            dados_comparacao['EFICIENCIA'] = dados_comparacao.apply(
+                lambda row: row['TOTAL_ALUNOS'] /
+                row['TOTAL_POLOS'] if row['TOTAL_POLOS'] > 0 else 0,
+                axis=1
+            )
+
+            # Criar subplot com eixos Y secundários
+            fig = make_subplots(
+                specs=[[{"secondary_y": True}]],
+                subplot_titles=[
+                    f"Comparativo Alunos vs Polos {f'- {filter_value}' if filter_value != 'Todos' else ''}"]
+            )
+
+            # Gráfico de barras para número de alunos (eixo Y primário)
+            fig.add_trace(
+                go.Bar(
+                    x=dados_comparacao[group_col],
+                    y=dados_comparacao['TOTAL_ALUNOS'],
+                    name='Total de Alunos',
+                    marker_color='rgba(65, 105, 225, 0.8)',  # Azul
+                    text=dados_comparacao['TOTAL_ALUNOS'],
+                    textposition='outside',
+                    texttemplate='%{text:,.0f}',
+                    hovertemplate='<b>%{x}</b><br>Alunos: %{y:,.0f}<extra></extra>'
+                ),
+                secondary_y=False
+            )
+
+            # Gráfico de linha para número de polos (eixo Y secundário)
+            fig.add_trace(
+                go.Scatter(
+                    x=dados_comparacao[group_col],
+                    y=dados_comparacao['TOTAL_POLOS'],
+                    mode='lines+markers+text',
+                    name='Total de Polos',
+                    line=dict(color='rgba(255, 99, 71, 1)',
+                              width=3),  # Vermelho
+                    marker=dict(size=10, color='rgba(255, 99, 71, 1)'),
+                    text=dados_comparacao['TOTAL_POLOS'],
+                    textposition='top center',
+                    texttemplate='%{text:.0f}',
+                    hovertemplate='<b>%{x}</b><br>Polos: %{y:.0f}<extra></extra>'
+                ),
+                secondary_y=True
+            )
+
+            # Gráfico de linha para eficiência (alunos por polo)
+            fig.add_trace(
+                go.Scatter(
+                    x=dados_comparacao[group_col],
+                    y=dados_comparacao['EFICIENCIA'],
+                    mode='lines+markers',
+                    name='Alunos por Polo',
+                    line=dict(color='rgba(50, 205, 50, 1)',
+                              width=2, dash='dash'),  # Verde
+                    marker=dict(size=8, color='rgba(50, 205, 50, 1)'),
+                    hovertemplate='<b>%{x}</b><br>Eficiência: %{y:.1f} alunos/polo<extra></extra>'
+                ),
+                secondary_y=True
+            )
+
+            # Configurar eixos
+            fig.update_xaxes(
+                title_text=f"{group_col}",
+                tickangle=45 if len(dados_comparacao) > 8 else 0
+            )
+
+            fig.update_yaxes(
+                title_text="<b>Número de Alunos</b>",
+                secondary_y=False,
+                showgrid=True,
+                gridcolor='rgba(128,128,128,0.2)'
+            )
+
+            fig.update_yaxes(
+                title_text="<b>Número de Polos / Eficiência</b>",
+                secondary_y=True,
+                showgrid=False
+            )
+
+            # Layout geral
+            fig.update_layout(
+                title={
+                    'text': f"<b>Análise Comparativa: Alunos vs Polos vs Eficiência</b>",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 16}
+                },
+                hovermode='x unified',
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="center",
+                    x=0.5
+                ),
+                height=500,
+                margin=dict(t=80, b=50, l=50, r=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_efficiency_analysis_chart(
+            self, municipios_df: pd.DataFrame, polos_df: pd.DataFrame,
+            filter_type: str = "UF") -> go.Figure:
+        """Cria gráfico de análise de eficiência detalhada"""
+
+        if municipios_df.empty or polos_df.empty:
+            return go.Figure()
+
+        try:
+            # Agrupar dados
+            group_col = filter_type
+
+            # Calcular métricas por grupo
+            alunos_stats = municipios_df.groupby(group_col).agg({
+                'TOTAL_ALUNOS': ['sum', 'mean', 'count'],
+                'DISTANCIA_KM': 'mean'
+            }).round(2)
+
+            alunos_stats.columns = [
+                'Total_Alunos', 'Media_Alunos_Municipio', 'Num_Municipios', 'Distancia_Media']
+            alunos_stats = alunos_stats.reset_index()
+
+            polos_stats = polos_df.groupby(
+                group_col).size().reset_index(name='Total_Polos')
+
+            # Merge
+            efficiency_data = pd.merge(
+                alunos_stats, polos_stats, on=group_col, how='outer').fillna(0)
+
+            # Calcular eficiências
+            efficiency_data['Alunos_por_Polo'] = efficiency_data.apply(
+                lambda row: row['Total_Alunos'] /
+                row['Total_Polos'] if row['Total_Polos'] > 0 else 0,
+                axis=1
+            )
+
+            efficiency_data['Municipios_por_Polo'] = efficiency_data.apply(
+                lambda row: row['Num_Municipios'] /
+                row['Total_Polos'] if row['Total_Polos'] > 0 else 0,
+                axis=1
+            )
+
+            # Filtrar dados válidos
+            efficiency_data = efficiency_data[efficiency_data['Total_Alunos'] > 0]
+            efficiency_data = efficiency_data.sort_values(
+                'Alunos_por_Polo', ascending=False)
+
+            # Criar gráfico de barras horizontal
+            fig = go.Figure()
+
+            fig.add_trace(go.Bar(
+                y=efficiency_data[group_col],
+                x=efficiency_data['Alunos_por_Polo'],
+                orientation='h',
+                name='Alunos por Polo',
+                marker_color='rgba(65, 105, 225, 0.8)',
+                text=efficiency_data['Alunos_por_Polo'].round(1),
+                textposition='auto',
+                hovertemplate='<b>%{y}</b><br>' +
+                            'Alunos por Polo: %{x:.1f}<br>' +
+                            'Total Alunos: %{customdata[0]:,.0f}<br>' +
+                            'Total Polos: %{customdata[1]:.0f}<br>' +
+                            'Distância Média: %{customdata[2]:.1f} km<extra></extra>',
+                customdata=efficiency_data[[
+                    'Total_Alunos', 'Total_Polos', 'Distancia_Media']].values
+            ))
+
+            fig.update_layout(
+                title={
+                    'text': f"<b>Eficiência por {group_col}: Alunos por Polo</b>",
+                    'x': 0.5,
+                    'xanchor': 'center'
+                },
+                xaxis_title="Alunos por Polo",
+                yaxis_title=group_col,
+                height=max(400, len(efficiency_data) * 30),
+                margin=dict(l=100, r=50, t=60, b=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar análise de eficiência: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )

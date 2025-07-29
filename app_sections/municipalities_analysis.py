@@ -21,19 +21,19 @@ class MunicipalitiesAnalysis(BasePage):
         # Renderizar seções
         self._render_top_municipalities(municipios_df, top_n)
         self._render_correlation_analysis(municipios_df)
-        self._render_correlation_matrix(municipios_df)
+        self._render_comparative_analysis(
+            municipios_df, polos_df)  # Nova seção
 
     def _render_top_municipalities(self, municipios_df, top_n):
         """Renderiza análise dos top municípios"""
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader(f"Top {top_n} Municípios com Mais Alunos")
+            st.subheader(f"🏆 Top {top_n} Municípios com Mais Alunos")
             try:
                 if 'TOTAL_ALUNOS' in municipios_df.columns and 'MUNICIPIO_IBGE' in municipios_df.columns:
                     # Filtrar municípios com alunos > 0
-                    municipios_com_alunos = municipios_df[municipios_df[
-                        'TOTAL_ALUNOS'] > 0]
+                    municipios_com_alunos = municipios_df[municipios_df['TOTAL_ALUNOS'] > 0]
 
                     if not municipios_com_alunos.empty:
                         top_cidades = municipios_com_alunos.nlargest(
@@ -65,13 +65,12 @@ class MunicipalitiesAnalysis(BasePage):
                 st.error(f"Erro ao gerar gráfico: {str(e)}")
 
         with col2:
-            st.subheader("Alunos por UF")
+            st.subheader("📈 Alunos por UF")
             try:
                 if 'UF' in municipios_df.columns and 'TOTAL_ALUNOS' in municipios_df.columns:
                     alunos_por_uf = municipios_df.groupby(
                         'UF')['TOTAL_ALUNOS'].sum().reset_index()
-                    alunos_por_uf = alunos_por_uf[alunos_por_uf[
-                        'TOTAL_ALUNOS'] > 0]
+                    alunos_por_uf = alunos_por_uf[alunos_por_uf['TOTAL_ALUNOS'] > 0]
 
                     if not alunos_por_uf.empty:
                         fig_uf = px.bar(
@@ -97,7 +96,7 @@ class MunicipalitiesAnalysis(BasePage):
         col3, col4 = st.columns(2)
 
         with col3:
-            st.subheader("Distância vs Alunos")
+            st.subheader("📏 Distância vs Alunos")
             try:
                 required_cols = ['DISTANCIA_KM', 'TOTAL_ALUNOS',
                                  'REGIAO', 'MUNICIPIO_IBGE', 'UF']
@@ -133,12 +132,11 @@ class MunicipalitiesAnalysis(BasePage):
                 st.error(f"Erro ao gerar gráfico: {str(e)}")
 
         with col4:
-            st.subheader("Distribuição de Distâncias por UF")
+            st.subheader("📦 Distribuição de Distâncias por UF")
             try:
                 if 'DISTANCIA_KM' in municipios_df.columns and 'UF' in municipios_df.columns:
                     # Filtrar dados válidos
-                    dados_validos = municipios_df[municipios_df[
-                        'DISTANCIA_KM'] > 0]
+                    dados_validos = municipios_df[municipios_df['DISTANCIA_KM'] > 0]
 
                     if not dados_validos.empty and len(dados_validos) > 10:
                         fig_boxplot = px.box(
@@ -162,36 +160,133 @@ class MunicipalitiesAnalysis(BasePage):
             except Exception as e:
                 st.error(f"Erro ao gerar gráfico: {str(e)}")
 
-    def _render_correlation_matrix(self, municipios_df):
-        """Renderiza matriz de correlação"""
-        st.subheader("🌡️ Matriz de Correlação")
-        try:
-            # Selecionar apenas colunas numéricas
-            numeric_cols = ['LAT', 'LNG', 'DISTANCIA_KM', 'TOTAL_ALUNOS']
-            available_cols = [
-                col for col in numeric_cols if col in municipios_df.columns]
+    def _render_comparative_analysis(self, municipios_df, polos_df):
+        """Renderiza análise comparativa de alunos vs polos"""
+        st.subheader("⚖️ Análise Comparativa: Alunos vs Polos")
 
-            if len(available_cols) >= 2:
-                # Filtrar dados válidos
-                dados_numericos = municipios_df[available_cols].copy()
-                dados_numericos = dados_numericos.dropna()
+        # Verificar se há dados de polos
+        if not self.check_data_availability(polos_df, "polos"):
+            return
 
-                if not dados_numericos.empty and len(dados_numericos) > 10:
-                    corr_matrix = dados_numericos.corr()
+        # Controles de filtro
+        col_filter1, col_filter2 = st.columns(2)
 
-                    fig_corr = px.imshow(
-                        corr_matrix,
-                        text_auto=True,
-                        aspect="auto",
-                        title='Matriz de Correlação - Variáveis Numéricas',
-                        color_continuous_scale='RdBu'
-                    )
+        with col_filter1:
+            filter_type = st.selectbox(
+                "Filtrar por:",
+                ["UF", "REGIAO"],
+                help="Escolha se deseja filtrar por Estado (UF) ou Região"
+            )
 
-                    st.plotly_chart(fig_corr, use_container_width=True)
-                else:
-                    st.info(
-                        "Dados insuficientes para gerar a matriz.")
+        with col_filter2:
+            # Obter valores únicos para o filtro
+            if filter_type == "UF":
+                filter_options = [
+                    "Todos"] + sorted(municipios_df['UF'].dropna().unique().tolist())
             else:
-                st.info("Colunas numéricas insuficientes para correlação.")
+                filter_options = [
+                    "Todos"] + sorted(municipios_df['REGIAO'].dropna().unique().tolist())
+
+            filter_value = st.selectbox(
+                f"Selecione {filter_type}:",
+                filter_options
+            )
+
+        # Gráfico comparativo principal
+        try:
+            fig_comparison = self.viz.create_students_vs_polos_comparison(
+                municipios_df, polos_df, filter_type, filter_value
+            )
+            st.plotly_chart(fig_comparison, use_container_width=True)
         except Exception as e:
-            st.error(f"Erro ao gerar matriz de correlação: {str(e)}")
+            st.error(f"Erro ao gerar gráfico comparativo: {str(e)}")
+
+        # Análise de eficiência
+        col_eff1, col_eff2 = st.columns(2)
+
+        with col_eff1:
+            st.subheader("📊 Eficiência por Estado")
+            try:
+                fig_efficiency_uf = self.viz.create_efficiency_analysis_chart(
+                    municipios_df, polos_df, "UF"
+                )
+                st.plotly_chart(fig_efficiency_uf, use_container_width=True)
+            except Exception as e:
+                st.error(
+                    f"Erro ao gerar análise de eficiência por UF: {str(e)}")
+
+        with col_eff2:
+            st.subheader("🌎 Eficiência por Região")
+            try:
+                fig_efficiency_regiao = self.viz.create_efficiency_analysis_chart(
+                    municipios_df, polos_df, "REGIAO"
+                )
+                st.plotly_chart(fig_efficiency_regiao,
+                                use_container_width=True)
+            except Exception as e:
+                st.error(
+                    f"Erro ao gerar análise de eficiência por Região: {str(e)}")
+
+        # Tabela resumo
+        self._render_summary_table(
+            municipios_df, polos_df, filter_type, filter_value)
+
+    def _render_summary_table(self, municipios_df, polos_df, filter_type, filter_value):
+        """Renderiza tabela resumo da análise"""
+        st.subheader("📋 Resumo da Análise")
+
+        try:
+            # Filtrar dados se necessário
+            if filter_value != "Todos":
+                municipios_filtered = municipios_df[municipios_df[filter_type]
+                                                    == filter_value]
+                polos_filtered = polos_df[polos_df[filter_type]
+                                          == filter_value]
+            else:
+                municipios_filtered = municipios_df.copy()
+                polos_filtered = polos_df.copy()
+
+            # Calcular estatísticas por grupo
+            group_col = filter_type
+
+            summary_stats = municipios_filtered.groupby(group_col).agg({
+                'TOTAL_ALUNOS': ['sum', 'mean', 'count'],
+                'DISTANCIA_KM': 'mean'
+            }).round(2)
+
+            summary_stats.columns = [
+                'Total_Alunos', 'Media_Alunos_por_Municipio', 'Num_Municipios', 'Distancia_Media_km']
+            summary_stats = summary_stats.reset_index()
+
+            # Adicionar dados de polos
+            polos_stats = polos_filtered.groupby(
+                group_col).size().reset_index(name='Total_Polos')
+            summary_final = pd.merge(
+                summary_stats, polos_stats, on=group_col, how='outer').fillna(0)
+
+            # Calcular eficiência
+            summary_final['Alunos_por_Polo'] = summary_final.apply(
+                lambda row: round(
+                    row['Total_Alunos'] / row['Total_Polos'], 1) if row['Total_Polos'] > 0 else 0,
+                axis=1
+            )
+
+            # Renomear colunas para exibição
+            summary_final.columns = [
+                group_col, 'Total de Alunos', 'Média Alunos/Município',
+                'Nº Municípios', 'Distância Média (km)', 'Total de Polos', 'Alunos por Polo'
+            ]
+
+            # Ordenar por eficiência
+            summary_final = summary_final.sort_values(
+                'Alunos por Polo', ascending=False)
+
+            # Exibir tabela
+            st.dataframe(
+                summary_final,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        except Exception as e:
+            st.error(f"Erro ao gerar tabela resumo: {str(e)}")
