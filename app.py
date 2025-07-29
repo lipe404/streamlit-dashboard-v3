@@ -5,11 +5,11 @@ from utils.data_loader import GoogleSheetsLoader
 from config import GOOGLE_SHEETS_CONFIG, COLORS, MAP_CONFIG
 
 # Imports das páginas
-from pages.geographic_analysis import GeographicAnalysis
-from pages.municipalities_analysis import MunicipalitiesAnalysis
-from pages.coverage_analysis import CoverageAnalysis
-from pages.students_analysis import StudentsAnalysis
-from pages.alignment_analysis import AlignmentAnalysis
+from app_sections.geographic_analysis import GeographicAnalysis
+from app_sections.municipalities_analysis import MunicipalitiesAnalysis
+from app_sections.coverage_analysis import CoverageAnalysis
+from app_sections.students_analysis import StudentsAnalysis
+from app_sections.alignment_analysis import AlignmentAnalysis
 
 # Imports externos
 import streamlit as st
@@ -107,7 +107,7 @@ def display_metrics(polos_df, municipios_df, alunos_df):
     with col4:
         total_alunos = alunos_df['CPF'].nunique(
         ) if not alunos_df.empty and 'CPF' in alunos_df.columns else 0
-        st.metric("Total de Alunos", total_alunos)
+        st.metric("Total de Alunos (Amostragem 2025)", total_alunos)
 
 
 def main():

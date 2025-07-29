@@ -8,6 +8,78 @@ import re
 class DataProcessor:
     """Classe para processamento e limpeza dos dados"""
 
+    # Adicione este método à classe DataProcessor
+
+    @staticmethod
+    def enhance_municipal_data_for_coverage(municipios_df: pd.DataFrame, polos_df: pd.DataFrame) -> pd.DataFrame:
+        """Aprimora dados municipais para análise de cobertura"""
+
+        if municipios_df.empty or polos_df.empty:
+            return municipios_df
+
+        try:
+            # Criar cópia para não modificar o original
+            enhanced_df = municipios_df.copy()
+
+            # Identificar municípios com polos
+            if 'CIDADE' in polos_df.columns and 'MUNICIPIO_IBGE' in enhanced_df.columns:
+                polos_cidades = set(
+                    polos_df['CIDADE'].dropna().str.upper().str.strip())
+                enhanced_df['TEM_POLO'] = enhanced_df[
+                    'MUNICIPIO_IBGE'].str.upper(
+                ).str.strip().isin(polos_cidades)
+            else:
+                enhanced_df['TEM_POLO'] = False
+
+            # Categorizar tipo de cobertura
+            enhanced_df['TIPO_COBERTURA'] = enhanced_df.apply(
+                lambda row: DataProcessor._categorize_coverage_type(
+                    row), axis=1
+            )
+
+            # Calcular estatísticas de cobertura por UF
+            coverage_stats = enhanced_df.groupby('UF').agg({
+                'TEM_POLO': 'sum',
+                'DISTANCIA_KM': 'mean',
+                'TOTAL_ALUNOS': 'sum',
+                'MUNICIPIO_IBGE': 'count'
+            }).reset_index()
+
+            coverage_stats.columns = ['UF', 'Municipios_Com_Polo',
+                                      'Distancia_Media', 'Total_Alunos',
+                                      'Total_Municipios']
+
+            # Merge das estatísticas de volta
+            enhanced_df = enhanced_df.merge(
+                coverage_stats, on='UF', how='left', suffixes=('', '_UF'))
+
+            return enhanced_df
+
+        except Exception as e:
+            st.warning(f"Erro ao aprimorar dados municipais: {str(e)}")
+            return municipios_df
+
+    @staticmethod
+    def _categorize_coverage_type(row):
+        """Categoriza o tipo de cobertura do município"""
+        try:
+            if row.get('TEM_POLO', False):
+                return 'Com Polo'
+
+            distancia = row.get('DISTANCIA_KM', 999)
+            if pd.notna(distancia):
+                dist_float = float(distancia)
+                if dist_float <= 50:
+                    return 'Cobertura Próxima'
+                elif dist_float <= 100:
+                    return 'Cobertura Estendida'
+                else:
+                    return 'Fora da Cobertura'
+            else:
+                return 'Sem Dados'
+        except:
+            return 'Sem Dados'
+
     @staticmethod
     def clean_polos_data(df: pd.DataFrame) -> pd.DataFrame:
         """Limpa e processa dados dos polos ativos"""

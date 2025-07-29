@@ -16,7 +16,7 @@ class MunicipalitiesAnalysis(BasePage):
 
         # Seletor para top N
         top_n = st.selectbox("Selecione o número de municípios:", [
-                             10, 20, 50], index=0)
+                             10, 20, 50, 100], index=0)
 
         # Renderizar seções
         self._render_top_municipalities(municipios_df, top_n)
@@ -28,7 +28,7 @@ class MunicipalitiesAnalysis(BasePage):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader(f"🏆 Top {top_n} Municípios com Mais Alunos")
+            st.subheader(f"Top {top_n} Municípios com Mais Alunos")
             try:
                 if 'TOTAL_ALUNOS' in municipios_df.columns and 'MUNICIPIO_IBGE' in municipios_df.columns:
                     # Filtrar municípios com alunos > 0
@@ -65,7 +65,7 @@ class MunicipalitiesAnalysis(BasePage):
                 st.error(f"Erro ao gerar gráfico: {str(e)}")
 
         with col2:
-            st.subheader("📈 Alunos por UF")
+            st.subheader("Alunos por UF")
             try:
                 if 'UF' in municipios_df.columns and 'TOTAL_ALUNOS' in municipios_df.columns:
                     alunos_por_uf = municipios_df.groupby(
@@ -97,7 +97,7 @@ class MunicipalitiesAnalysis(BasePage):
         col3, col4 = st.columns(2)
 
         with col3:
-            st.subheader("📏 Distância vs Alunos")
+            st.subheader("Distância vs Alunos")
             try:
                 required_cols = ['DISTANCIA_KM', 'TOTAL_ALUNOS',
                                  'REGIAO', 'MUNICIPIO_IBGE', 'UF']
@@ -133,7 +133,7 @@ class MunicipalitiesAnalysis(BasePage):
                 st.error(f"Erro ao gerar gráfico: {str(e)}")
 
         with col4:
-            st.subheader("📦 Distribuição de Distâncias por UF")
+            st.subheader("Distribuição de Distâncias por UF")
             try:
                 if 'DISTANCIA_KM' in municipios_df.columns and 'UF' in municipios_df.columns:
                     # Filtrar dados válidos
