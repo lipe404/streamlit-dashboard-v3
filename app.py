@@ -10,6 +10,7 @@ from app_sections.municipalities_analysis import MunicipalitiesAnalysis
 from app_sections.coverage_analysis import CoverageAnalysis
 from app_sections.students_analysis import StudentsAnalysis
 from app_sections.alignment_analysis import AlignmentAnalysis
+from app_sections.vendas_analysis import VendasAnalysis
 
 # Imports externos
 import streamlit as st
@@ -84,10 +85,16 @@ def load_and_process_data():
     else:
         processed_data['alunos'] = pd.DataFrame()
 
+    if not data['vendas'].empty:
+        processed_data['vendas'] = DataProcessor.clean_vendas_data(
+            data['vendas'])
+    else:
+        processed_data['vendas'] = pd.DataFrame()
+
     return processed_data
 
 
-def display_metrics(polos_df, municipios_df, alunos_df):
+def display_metrics(polos_df, municipios_df, alunos_df, vendas_df):
     """Exibe métricas principais"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -113,7 +120,7 @@ def display_metrics(polos_df, municipios_df, alunos_df):
 def main():
     # Header principal
     st.markdown(
-        '<h1 class="main-header">🎓 Dashboard de Análise Macro</h1>',
+        '<h1 class="main-header">Dashboard de Análise Macro</h1>',
         unsafe_allow_html=True)
 
     # Sidebar para navegação
@@ -126,15 +133,16 @@ def main():
     polos_df = data['polos']
     municipios_df = data['municipios']
     alunos_df = data['alunos']
+    vendas_df = data['vendas']
 
     # Verificar se os dados foram carregados
-    if polos_df.empty and municipios_df.empty and alunos_df.empty:
+    if polos_df.empty and municipios_df.empty and alunos_df.empty and vendas_df.empty:
         st.error(
             "Erro. Verifique as configurações das APIs.")
         return
 
     # Exibir métricas principais
-    display_metrics(polos_df, municipios_df, alunos_df)
+    display_metrics(polos_df, municipios_df, alunos_df, vendas_df)
 
     # Criar instância de visualizações
     viz = Visualizations(COLORS)
@@ -145,7 +153,8 @@ def main():
         "📊 Análise de Municípios e Alunos": MunicipalitiesAnalysis,
         "🎯 Análise de Cobertura e Eficiência": CoverageAnalysis,
         "👥 Análise de Alunos e Cursos": StudentsAnalysis,
-        "🔄 Análise de Alinhamento de Polos": AlignmentAnalysis
+        "🔄 Análise de Alinhamento de Polos": AlignmentAnalysis,
+        "💰 Análise de Vendas": VendasAnalysis
     }
 
     selected_section = st.sidebar.selectbox(
@@ -153,8 +162,14 @@ def main():
 
     # Executar a seção selecionada
     section_class = sections[selected_section]
-    section_instance = section_class(viz, MAP_CONFIG)
-    section_instance.render(polos_df, municipios_df, alunos_df)
+
+    # Passar vendas_df para a nova seção
+    if selected_section == "💰 Análise de Vendas":
+        section_instance = section_class(viz, MAP_CONFIG)
+        section_instance.render(vendas_df)
+    else:
+        section_instance = section_class(viz, MAP_CONFIG)
+        section_instance.render(polos_df, municipios_df, alunos_df)
 
     # Rodapé
     st.markdown("---")

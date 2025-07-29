@@ -201,6 +201,108 @@ class DataProcessor:
         return df_clean
 
     @staticmethod
+    def clean_vendas_data(df: pd.DataFrame) -> pd.DataFrame:
+        """Limpa e processa dados de vendas"""
+        if df.empty:
+            return df
+
+        try:
+            # Mapeamento das colunas baseado nas posições especificadas
+            columns_map = {
+                2: 'CPF',                    # Coluna C (índice 2)
+                3: 'ALUNO',                  # Coluna D (índice 3)
+                4: 'NIVEL',                  # Coluna E (índice 4)
+                5: 'CURSO',                  # Coluna F (índice 5)
+                9: 'DT_PAGTO',               # Coluna J (índice 9)
+                13: 'TIPO_PARCERIA'          # Coluna N (índice 13)
+            }
+
+            # Criar DataFrame limpo
+            df_clean = df.copy()
+
+            # Renomear colunas baseado no índice, verificando se existem
+            for idx, new_name in columns_map.items():
+                if idx < len(df.columns):
+                    old_name = df.columns[idx]
+                    df_clean.rename(columns={old_name: new_name}, inplace=True)
+                else:
+                    df_clean[new_name] = ''
+
+            # Manter apenas colunas necessárias
+            required_cols = list(columns_map.values())
+            df_clean = df_clean[required_cols]
+
+            # Filtrar modalidades válidas
+            modalidades_validas = [
+                'Aperfeiçoamento', 'Curso Técnico', 'Disciplina Isolada',
+                'Disciplinas Eletivas', 'Ensino fundamental (EJA)',
+                'Ensino Médio (EJA)', 'Extensão', 'Graduação',
+                'Pós-Graduação', 'Segunda Graduação', 'Tecnólogo'
+            ]
+
+            df_clean = df_clean[df_clean['NIVEL'].isin(modalidades_validas)]
+
+            # Filtrar tipos de parceria válidos
+            parcerias_validas = ['Parceiro Comercial',
+                                 'Parceiro Polo', 'Comercial Interno']
+            df_clean = df_clean[df_clean['TIPO_PARCERIA'].isin(
+                parcerias_validas)]
+
+            # Processar data de pagamento
+            df_clean = DataProcessor._process_payment_date(df_clean)
+
+            # Limpeza de dados
+            df_clean = DataProcessor._clean_text_columns(df_clean)
+
+            # Remover linhas com dados essenciais vazios
+            df_clean = df_clean.dropna(
+                subset=['CPF', 'DT_PAGTO', 'NIVEL', 'TIPO_PARCERIA'])
+
+            return df_clean
+
+        except Exception as e:
+            st.error(f"Erro ao processar dados de vendas: {str(e)}")
+            return pd.DataFrame()
+
+    @staticmethod
+    def _process_payment_date(df: pd.DataFrame) -> pd.DataFrame:
+        """Processa e converte datas de pagamento"""
+        if 'DT_PAGTO' not in df.columns:
+            return df
+
+        try:
+            # Converter para datetime
+            df['DT_PAGTO'] = pd.to_datetime(
+                df['DT_PAGTO'], format='%d/%m/%Y', errors='coerce')
+
+            # Extrair informações de data
+            df['ANO'] = df['DT_PAGTO'].dt.year
+            df['MES'] = df['DT_PAGTO'].dt.month
+            df['MES_ANO'] = df['DT_PAGTO'].dt.to_period('M').astype(str)
+            df['TRIMESTRE'] = df['DT_PAGTO'].dt.quarter
+            df['SEMESTRE'] = df['DT_PAGTO'].dt.month.apply(
+                lambda x: 1 if x <= 6 else 2)
+
+            # Nomes dos meses em português
+            meses_pt = {
+                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+            }
+
+            df['MES_NOME'] = df['MES'].map(meses_pt)
+
+            # Filtrar apenas dados válidos (remover datas futuras ou muito antigas)
+            current_year = 2025
+            df = df[(df['ANO'] >= 2020) & (df['ANO'] <= current_year)]
+
+            return df
+
+        except Exception as e:
+            st.warning(f"Erro ao processar datas: {str(e)}")
+            return df
+
+    @staticmethod
     def _clean_coordinates(
             df: pd.DataFrame, lat_col: str = 'lat',
             lng_col: str = 'long') -> pd.DataFrame:

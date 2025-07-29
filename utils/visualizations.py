@@ -52,7 +52,6 @@ class Visualizations:
         return m
 
     # Adicione este método à classe Visualizations
-
     def create_municipal_coverage_map_with_boundaries(
             self, polos_df: pd.DataFrame, municipios_df: pd.DataFrame,
             map_config: Dict) -> folium.Map:
@@ -1092,6 +1091,555 @@ class Visualizations:
         except Exception as e:
             return go.Figure().add_annotation(
                 text=f"Erro ao gerar análise de eficiência: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_courses_by_region_chart(self, alunos_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
+        """Cria gráfico de cursos mais demandados por região"""
+
+        if alunos_df.empty or 'CURSO' not in alunos_df.columns or 'REGIAO' not in alunos_df.columns:
+            return go.Figure().add_annotation(
+                text="Dados de cursos ou regiões não disponíveis",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=16)
+            )
+
+        try:
+            # Filtrar dados válidos
+            dados_validos = alunos_df.dropna(subset=['CURSO', 'REGIAO'])
+
+            if dados_validos.empty:
+                return go.Figure().add_annotation(
+                    text="Nenhum dado válido encontrado",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=16)
+                )
+
+            # Agrupar por região e curso
+            cursos_por_regiao = dados_validos.groupby(
+                ['REGIAO', 'CURSO']).size().reset_index(name='Total_Alunos')
+
+            # Obter top cursos por região
+            top_cursos_regiao = []
+
+            for regiao in cursos_por_regiao['REGIAO'].unique():
+                regiao_data = cursos_por_regiao[cursos_por_regiao['REGIAO'] == regiao]
+                top_regiao = regiao_data.nlargest(top_n, 'Total_Alunos')
+                top_cursos_regiao.append(top_regiao)
+
+            # Concatenar todos os dados
+            dados_finais = pd.concat(top_cursos_regiao, ignore_index=True)
+
+            if dados_finais.empty:
+                return go.Figure().add_annotation(
+                    text="Nenhum curso encontrado",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=16)
+                )
+
+            # Criar gráfico de barras agrupadas
+            fig = px.bar(
+                dados_finais,
+                x='REGIAO',
+                y='Total_Alunos',
+                color='CURSO',
+                title=f'Top {top_n} Cursos Mais Demandados por Região',
+                labels={
+                    'Total_Alunos': 'Número de Alunos',
+                    'REGIAO': 'Região',
+                    'CURSO': 'Curso'
+                },
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+
+            fig.update_layout(
+                xaxis_title='Região',
+                yaxis_title='Número de Alunos',
+                legend_title='Cursos',
+                height=600,
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02
+                ),
+                margin=dict(r=200)  # Espaço para a legenda
+            )
+
+            # Adicionar valores nas barras
+            fig.update_traces(
+                texttemplate='%{y}',
+                textposition='outside'
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_courses_by_region_heatmap(self, alunos_df: pd.DataFrame, top_courses: int = 15) -> go.Figure:
+        """Cria heatmap de cursos por região"""
+
+        if alunos_df.empty or 'CURSO' not in alunos_df.columns or 'REGIAO' not in alunos_df.columns:
+            return go.Figure()
+
+        try:
+            # Filtrar dados válidos
+            dados_validos = alunos_df.dropna(subset=['CURSO', 'REGIAO'])
+
+            if dados_validos.empty:
+                return go.Figure()
+
+            # Obter top cursos gerais
+            top_cursos_gerais = dados_validos['CURSO'].value_counts().head(
+                top_courses).index.tolist()
+
+            # Filtrar apenas os top cursos
+            dados_filtrados = dados_validos[dados_validos['CURSO'].isin(
+                top_cursos_gerais)]
+
+            # Criar tabela cruzada
+            heatmap_data = pd.crosstab(
+                dados_filtrados['CURSO'], dados_filtrados['REGIAO'])
+
+            # Ordenar por total de alunos
+            heatmap_data['Total'] = heatmap_data.sum(axis=1)
+            heatmap_data = heatmap_data.sort_values('Total', ascending=False)
+            heatmap_data = heatmap_data.drop('Total', axis=1)
+
+            # Criar heatmap
+            fig = px.imshow(
+                heatmap_data.values,
+                x=heatmap_data.columns,
+                y=heatmap_data.index,
+                color_continuous_scale='Viridis',
+                title=f'Heatmap: Top {top_courses} Cursos por Região',
+                labels=dict(x="Região", y="Curso", color="Número de Alunos")
+            )
+
+            # Adicionar valores nas células
+            fig.update_traces(
+                text=heatmap_data.values,
+                texttemplate="%{text}",
+                textfont={"size": 10}
+            )
+
+            fig.update_layout(
+                height=max(400, len(heatmap_data) * 25),
+                margin=dict(l=200, r=50, t=60, b=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar heatmap: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_regional_course_summary(self, alunos_df: pd.DataFrame) -> pd.DataFrame:
+        """Cria tabela resumo de cursos por região"""
+
+        if alunos_df.empty or 'CURSO' not in alunos_df.columns or 'REGIAO' not in alunos_df.columns:
+            return pd.DataFrame()
+
+        try:
+            # Filtrar dados válidos
+            dados_validos = alunos_df.dropna(subset=['CURSO', 'REGIAO'])
+
+            if dados_validos.empty:
+                return pd.DataFrame()
+
+            # Estatísticas por região
+            resumo_regiao = dados_validos.groupby('REGIAO').agg({
+                'CURSO': ['count', 'nunique'],
+                'CPF': 'nunique' if 'CPF' in dados_validos.columns else 'count'
+            }).round(2)
+
+            resumo_regiao.columns = ['Total_Matriculas',
+                                     'Cursos_Distintos', 'Alunos_Unicos']
+            resumo_regiao = resumo_regiao.reset_index()
+
+            # Calcular curso mais popular por região
+            curso_popular = dados_validos.groupby(
+                ['REGIAO', 'CURSO']).size().reset_index(name='count')
+            curso_mais_popular = curso_popular.loc[curso_popular.groupby('REGIAO')[
+                'count'].idxmax()]
+            curso_mais_popular = curso_mais_popular[[
+                'REGIAO', 'CURSO', 'count']]
+            curso_mais_popular.columns = [
+                'REGIAO', 'Curso_Mais_Popular', 'Alunos_Curso_Popular']
+
+            # Merge dos dados
+            resumo_final = pd.merge(
+                resumo_regiao, curso_mais_popular, on='REGIAO', how='left')
+
+            # Calcular média de alunos por curso
+            resumo_final['Media_Alunos_por_Curso'] = (
+                resumo_final['Total_Matriculas'] /
+                resumo_final['Cursos_Distintos']
+            ).round(1)
+
+            # Ordenar por total de matrículas
+            resumo_final = resumo_final.sort_values(
+                'Total_Matriculas', ascending=False)
+
+            return resumo_final
+
+        except Exception as e:
+            return pd.DataFrame()
+
+    # Métodos para análise de vendas
+    def create_sales_partnership_pie(self, vendas_df: pd.DataFrame, selected_partnerships: List[str] = None) -> go.Figure:
+        """Cria gráfico de pizza das vendas por tipo de parceria"""
+
+        if vendas_df.empty or 'TIPO_PARCERIA' not in vendas_df.columns:
+            return go.Figure()
+
+        try:
+            # Filtrar por parcerias selecionadas se especificado
+            if selected_partnerships:
+                vendas_filtered = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
+                    selected_partnerships)]
+            else:
+                vendas_filtered = vendas_df.copy()
+
+            if vendas_filtered.empty:
+                return go.Figure()
+
+            # Contar vendas por tipo de parceria
+            vendas_por_parceria = vendas_filtered['TIPO_PARCERIA'].value_counts(
+            )
+
+            # Calcular percentuais
+            total_vendas = vendas_por_parceria.sum()
+            percentuais = (vendas_por_parceria / total_vendas * 100).round(1)
+
+            # Criar gráfico de pizza
+            fig = go.Figure(data=[go.Pie(
+                labels=vendas_por_parceria.index,
+                values=vendas_por_parceria.values,
+                textinfo='label+percent+value',
+                texttemplate='%{label}<br>%{percent}<br>(%{value} vendas)',
+                hovertemplate='<b>%{label}</b><br>' +
+                            'Vendas: %{value}<br>' +
+                            'Percentual: %{percent}<br>' +
+                            '<extra></extra>',
+                            marker=dict(
+                                colors=['#FF6B6B', '#4ECDC4',
+                                        '#45B7D1', '#96CEB4', '#FFEAA7'],
+                                line=dict(color='#FFFFFF', width=2)
+                            )
+                            )])
+
+            fig.update_layout(
+                title={
+                    'text': '<b>Distribuição de Vendas por Tipo de Parceria</b>',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 16}
+                },
+                height=500,
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.05
+                )
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_sales_timeline_chart(self, vendas_df: pd.DataFrame, group_by: str = "modalidade",
+                                    selected_filters: List[str] = None) -> go.Figure:
+        """Cria gráfico de linha temporal das vendas"""
+
+        if vendas_df.empty or 'MES_ANO' not in vendas_df.columns:
+            return go.Figure()
+
+        try:
+            # Determinar coluna de agrupamento
+            group_column = 'NIVEL' if group_by == "modalidade" else 'TIPO_PARCERIA'
+
+            if group_column not in vendas_df.columns:
+                return go.Figure()
+
+            # Filtrar dados se especificado
+            if selected_filters:
+                vendas_filtered = vendas_df[vendas_df[group_column].isin(
+                    selected_filters)]
+            else:
+                vendas_filtered = vendas_df.copy()
+
+            if vendas_filtered.empty:
+                return go.Figure()
+
+            # Agrupar por mês e categoria
+            vendas_timeline = vendas_filtered.groupby(
+                ['MES_ANO', group_column]).size().reset_index(name='Vendas')
+
+            # Criar gráfico de linha
+            fig = px.line(
+                vendas_timeline,
+                x='MES_ANO',
+                y='Vendas',
+                color=group_column,
+                title=f'Evolução das Vendas por {group_by.title()}',
+                markers=True,
+                line_shape='spline'
+            )
+
+            fig.update_layout(
+                xaxis_title='Período (Mês/Ano)',
+                yaxis_title='Número de Vendas',
+                hovermode='x unified',
+                legend_title=group_by.title(),
+                height=500,
+                xaxis=dict(tickangle=45)
+            )
+
+            # Personalizar hover
+            fig.update_traces(
+                hovertemplate='<b>%{fullData.name}</b><br>' +
+                'Período: %{x}<br>' +
+                'Vendas: %{y}<br>' +
+                '<extra></extra>'
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_top_courses_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
+        """Cria gráfico dos top cursos por tipo de parceria"""
+
+        if vendas_df.empty or 'CURSO' not in vendas_df.columns or 'TIPO_PARCERIA' not in vendas_df.columns:
+            return go.Figure()
+
+        try:
+            # Agrupar por parceria e curso
+            cursos_por_parceria = vendas_df.groupby(
+                ['TIPO_PARCERIA', 'CURSO']).size().reset_index(name='Vendas')
+
+            # Obter top cursos por parceria
+            top_cursos_parceria = []
+
+            for parceria in cursos_por_parceria['TIPO_PARCERIA'].unique():
+                parceria_data = cursos_por_parceria[cursos_por_parceria['TIPO_PARCERIA'] == parceria]
+                top_parceria = parceria_data.nlargest(top_n, 'Vendas')
+                top_cursos_parceria.append(top_parceria)
+
+            # Concatenar dados
+            dados_finais = pd.concat(top_cursos_parceria, ignore_index=True)
+
+            if dados_finais.empty:
+                return go.Figure()
+
+            # Criar gráfico de barras agrupadas
+            fig = px.bar(
+                dados_finais,
+                x='TIPO_PARCERIA',
+                y='Vendas',
+                color='CURSO',
+                title=f'Top {top_n} Cursos Mais Vendidos por Tipo de Parceria',
+                text='Vendas'
+            )
+
+            fig.update_layout(
+                xaxis_title='Tipo de Parceria',
+                yaxis_title='Número de Vendas',
+                legend_title='Cursos',
+                height=600,
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02
+                ),
+                margin=dict(r=250)
+            )
+
+            fig.update_traces(textposition='outside')
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_modalities_by_month_chart(self, vendas_df: pd.DataFrame) -> go.Figure:
+        """Cria gráfico das modalidades mais vendidas por mês"""
+
+        if vendas_df.empty or 'MES_NOME' not in vendas_df.columns or 'NIVEL' not in vendas_df.columns:
+            return go.Figure()
+
+        try:
+            # Agrupar por mês e modalidade
+            modalidades_mes = vendas_df.groupby(
+                ['MES_NOME', 'NIVEL']).size().reset_index(name='Vendas')
+
+            # Obter top modalidade por mês
+            top_modalidades_mes = modalidades_mes.loc[modalidades_mes.groupby('MES_NOME')[
+                'Vendas'].idxmax()]
+
+            # Ordenar meses corretamente
+            ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+            top_modalidades_mes['MES_NOME'] = pd.Categorical(
+                top_modalidades_mes['MES_NOME'],
+                categories=ordem_meses,
+                ordered=True
+            )
+
+            top_modalidades_mes = top_modalidades_mes.sort_values('MES_NOME')
+
+            # Criar gráfico de barras
+            fig = px.bar(
+                top_modalidades_mes,
+                x='MES_NOME',
+                y='Vendas',
+                color='NIVEL',
+                title='Modalidade Mais Vendida por Mês',
+                text='Vendas',
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+
+            fig.update_layout(
+                xaxis_title='Mês',
+                yaxis_title='Número de Vendas',
+                legend_title='Modalidade',
+                height=500,
+                xaxis=dict(tickangle=45)
+            )
+
+            fig.update_traces(textposition='outside')
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar gráfico: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
+    def create_sales_comparison_chart(self, vendas_df: pd.DataFrame, comparison_type: str,
+                                      period1: str, period2: str) -> go.Figure:
+        """Cria gráfico de comparação entre períodos/tipos"""
+
+        if vendas_df.empty:
+            return go.Figure()
+
+        try:
+            if comparison_type == "meses":
+                # Comparação entre meses
+                vendas_p1 = vendas_df[vendas_df['MES_NOME'] == period1]
+                vendas_p2 = vendas_df[vendas_df['MES_NOME'] == period2]
+
+                # Agrupar por modalidade
+                p1_data = vendas_p1['NIVEL'].value_counts()
+                p2_data = vendas_p2['NIVEL'].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                }).fillna(0)
+
+                title = f'Comparação de Vendas: {period1} vs {period2}'
+
+            elif comparison_type == "parcerias":
+                # Comparação entre tipos de parceria
+                vendas_p1 = vendas_df[vendas_df['TIPO_PARCERIA'] == period1]
+                vendas_p2 = vendas_df[vendas_df['TIPO_PARCERIA'] == period2]
+
+                # Agrupar por modalidade
+                p1_data = vendas_p1['NIVEL'].value_counts()
+                p2_data = vendas_p2['NIVEL'].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                }).fillna(0)
+
+                title = f'Comparação de Vendas por Parceria: {period1} vs {period2}'
+
+            else:  # modalidades
+                # Comparação entre modalidades
+                vendas_p1 = vendas_df[vendas_df['NIVEL'] == period1]
+                vendas_p2 = vendas_df[vendas_df['NIVEL'] == period2]
+
+                # Agrupar por mês
+                p1_data = vendas_p1['MES_NOME'].value_counts()
+                p2_data = vendas_p2['MES_NOME'].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                }).fillna(0)
+
+                title = f'Comparação de Modalidades: {period1} vs {period2}'
+
+            # Reset index para plotar
+            comparison_df = comparison_df.reset_index()
+            comparison_df = comparison_df.melt(
+                id_vars='index', var_name='Período', value_name='Vendas')
+
+            # Criar gráfico de barras agrupadas
+            fig = px.bar(
+                comparison_df,
+                x='index',
+                y='Vendas',
+                color='Período',
+                title=title,
+                barmode='group',
+                text='Vendas'
+            )
+
+            fig.update_layout(
+                xaxis_title='Categoria',
+                yaxis_title='Número de Vendas',
+                height=500,
+                xaxis=dict(tickangle=45)
+            )
+
+            fig.update_traces(textposition='outside')
+
+            return fig
+
+        except Exception as e:
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar comparação: {str(e)}",
                 xref="paper", yref="paper", x=0.5, y=0.5,
                 showarrow=False, font=dict(size=14, color="red")
             )

@@ -106,4 +106,12 @@ class GoogleSheetsLoader:
                 alunos_config['abas']['alunos_dados']
             )
 
+            # Carregar dados de vendas
+            vendas_config = config['planilha_vendas']
+            data['vendas'] = GoogleSheetsLoader.load_sheet_data(
+                vendas_config['API_KEY'],
+                vendas_config['SHEET_ID'],
+                vendas_config['abas']['base_vendas']
+            )
+
         return data

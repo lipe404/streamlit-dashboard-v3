@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import folium
-from streamlit_folium import st_folium
 from . import BasePage
 
 
@@ -22,8 +20,8 @@ class StudentsAnalysis(BasePage):
         # Análise por UF
         self._render_uf_analysis(alunos_df)
 
-        # Mapa de densidade
-        self._render_density_map(alunos_df, polos_df)
+        # Análise por Região (Nova seção)
+        self._render_regional_analysis(alunos_df)
 
     def _render_course_analysis(self, alunos_df):
         """Renderiza análise de cursos"""
@@ -40,7 +38,9 @@ class StudentsAnalysis(BasePage):
                 alunos_regiao = alunos_df['REGIAO'].value_counts()
                 fig_regiao = px.pie(
                     values=alunos_regiao.values, names=alunos_regiao.index,
-                    title='Distribuição de Alunos por Região')
+                    title='Distribuição de Alunos por Região',
+                    color_discrete_sequence=px.colors.qualitative.Set3
+                )
                 st.plotly_chart(fig_regiao, use_container_width=True)
 
     def _render_uf_analysis(self, alunos_df):
@@ -57,52 +57,170 @@ class StudentsAnalysis(BasePage):
                 alunos_uf = alunos_df[alunos_df['UF'] == uf_selecionada]
                 cursos_uf = alunos_uf['CURSO'].value_counts().head(10)
 
-                fig_cursos_uf = px.bar(
-                    x=cursos_uf.values,
-                    y=cursos_uf.index,
-                    orientation='h',
-                    title=f'Top 10 Cursos em {uf_selecionada}'
-                )
-                fig_cursos_uf.update_layout(
-                    yaxis={'categoryorder': 'total ascending'})
-                st.plotly_chart(fig_cursos_uf, use_container_width=True)
+                if not cursos_uf.empty:
+                    fig_cursos_uf = px.bar(
+                        x=cursos_uf.values,
+                        y=cursos_uf.index,
+                        orientation='h',
+                        title=f'Top 10 Cursos em {uf_selecionada}',
+                        color=cursos_uf.values,
+                        color_continuous_scale='Plasma'
+                    )
+                    fig_cursos_uf.update_layout(
+                        yaxis={'categoryorder': 'total ascending'},
+                        xaxis_title='Número de Alunos',
+                        yaxis_title='Curso'
+                    )
+                    st.plotly_chart(fig_cursos_uf, use_container_width=True)
+                else:
+                    st.info(f"Nenhum curso encontrado para {uf_selecionada}")
 
-    def _render_density_map(self, alunos_df, polos_df):
-        """Renderiza mapa de densidade de alunos"""
-        if 'LAT' in alunos_df.columns and 'LNG' in alunos_df.columns:
-            st.subheader("🗺️ Densidade de Alunos por Localização")
+    def _render_regional_analysis(self, alunos_df):
+        """Renderiza análise por região (substitui o mapa de densidade)"""
+        st.subheader("🌍 Cursos Mais Demandados por Região do Brasil")
 
-            # Filtrar alunos com coordenadas válidas
-            alunos_com_coord = alunos_df.dropna(subset=['LAT', 'LNG'])
+        if 'REGIAO' not in alunos_df.columns or 'CURSO' not in alunos_df.columns:
+            st.warning(
+                "Dados de região ou curso não disponíveis para esta análise.")
+            return
 
-            if not alunos_com_coord.empty:
-                # Criar mapa de densidade
-                m = folium.Map(
-                    location=[self.map_config['center_lat'],
-                              self.map_config['center_lon']],
-                    zoom_start=self.map_config['zoom']
-                )
+        # Controles para a análise regional
+        col_control1, col_control2 = st.columns(2)
 
-                # Dados para heatmap
-                heat_data = [[row['LAT'], row['LNG']]
-                             for _, row in alunos_com_coord.iterrows()]
+        with col_control1:
+            top_cursos = st.selectbox(
+                "Número de cursos por região:",
+                [5, 10, 15, 20],
+                index=1,
+                help="Selecione quantos cursos mostrar por região"
+            )
 
-                if heat_data:
-                    from folium import plugins
-                    plugins.HeatMap(heat_data, radius=15).add_to(m)
+        with col_control2:
+            visualization_type = st.selectbox(
+                "Tipo de visualização:",
+                ["Gráfico de Barras", "Heatmap", "Tabela Resumo"],
+                help="Escolha como visualizar os dados"
+            )
 
-                    # Adicionar polos ao mapa
-                    if not polos_df.empty:
-                        for _, polo in polos_df.iterrows():
-                            if pd.notna(polo['lat']) and pd.notna(
-                                    polo['long']):
-                                folium.Marker(
-                                    location=[polo['lat'], polo['long']],
-                                    popup=f"<b>{polo['UNIDADE']}</b>",
-                                    icon=folium.Icon(
-                                        color='red',
-                                        icon='graduation-cap',
-                                        prefix='fa')
-                                ).add_to(m)
+        # Renderizar visualização baseada na seleção
+        if visualization_type == "Gráfico de Barras":
+            try:
+                fig_cursos_regiao = self.viz.create_courses_by_region_chart(
+                    alunos_df, top_cursos)
+                st.plotly_chart(fig_cursos_regiao, use_container_width=True)
+            except Exception as e:
+                st.error(f"Erro ao gerar gráfico de barras: {str(e)}")
 
-                    st_folium(m, width=700, height=500)
+        elif visualization_type == "Heatmap":
+            try:
+                fig_heatmap = self.viz.create_courses_by_region_heatmap(
+                    alunos_df, top_cursos)
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+            except Exception as e:
+                st.error(f"Erro ao gerar heatmap: {str(e)}")
+
+        elif visualization_type == "Tabela Resumo":
+            try:
+                resumo_regional = self.viz.create_regional_course_summary(
+                    alunos_df)
+
+                if not resumo_regional.empty:
+                    st.subheader("📋 Resumo por Região")
+
+                    # Renomear colunas para exibição
+                    resumo_display = resumo_regional.copy()
+                    resumo_display.columns = [
+                        'Região', 'Total Matrículas', 'Cursos Distintos',
+                        'Alunos Únicos', 'Curso Mais Popular',
+                        'Alunos no Curso Popular', 'Média Alunos/Curso'
+                    ]
+
+                    st.dataframe(
+                        resumo_display,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    # Métricas de destaque
+                    if len(resumo_regional) > 0:
+                        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+
+                        with col_m1:
+                            total_matriculas = resumo_regional['Total_Matriculas'].sum(
+                            )
+                            st.metric("Total de Matrículas",
+                                      f"{total_matriculas:,.0f}")
+
+                        with col_m2:
+                            total_cursos = resumo_regional['Cursos_Distintos'].sum(
+                            )
+                            st.metric("Total de Cursos", f"{total_cursos:.0f}")
+
+                        with col_m3:
+                            regiao_mais_ativa = resumo_regional.iloc[0]['REGIAO']
+                            st.metric("Região Mais Ativa", regiao_mais_ativa)
+
+                        with col_m4:
+                            media_geral = resumo_regional['Media_Alunos_por_Curso'].mean(
+                            )
+                            st.metric("Média Geral Alunos/Curso",
+                                      f"{media_geral:.1f}")
+
+                else:
+                    st.info("Nenhum dado disponível para o resumo regional.")
+
+            except Exception as e:
+                st.error(f"Erro ao gerar tabela resumo: {str(e)}")
+
+        # Análise adicional: Curso mais popular geral
+        self._render_popular_courses_analysis(alunos_df)
+
+    def _render_popular_courses_analysis(self, alunos_df):
+        """Renderiza análise dos cursos mais populares"""
+        st.subheader("🏆 Análise dos Cursos Mais Populares")
+
+        try:
+            if 'CURSO' in alunos_df.columns and 'REGIAO' in alunos_df.columns:
+                # Top 5 cursos gerais
+                top_cursos_gerais = alunos_df['CURSO'].value_counts().head(5)
+
+                col_pop1, col_pop2 = st.columns(2)
+
+                with col_pop1:
+                    # Gráfico dos top 5 cursos
+                    fig_top5 = px.bar(
+                        x=top_cursos_gerais.values,
+                        y=top_cursos_gerais.index,
+                        orientation='h',
+                        title='Top 5 Cursos Mais Populares (Geral)',
+                        color=top_cursos_gerais.values,
+                        color_continuous_scale='Viridis'
+                    )
+                    fig_top5.update_layout(
+                        yaxis={'categoryorder': 'total ascending'},
+                        xaxis_title='Número de Alunos',
+                        yaxis_title='Curso'
+                    )
+                    st.plotly_chart(fig_top5, use_container_width=True)
+
+                with col_pop2:
+                    # Análise regional do curso mais popular
+                    curso_mais_popular = top_cursos_gerais.index[0]
+                    alunos_curso_popular = alunos_df[alunos_df['CURSO']
+                                                     == curso_mais_popular]
+
+                    if not alunos_curso_popular.empty:
+                        distribuicao_regional = alunos_curso_popular['REGIAO'].value_counts(
+                        )
+
+                        fig_regional_popular = px.pie(
+                            values=distribuicao_regional.values,
+                            names=distribuicao_regional.index,
+                            title=f'Distribuição Regional: {curso_mais_popular}',
+                            color_discrete_sequence=px.colors.qualitative.Pastel
+                        )
+                        st.plotly_chart(fig_regional_popular,
+                                        use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Erro na análise de cursos populares: {str(e)}")
