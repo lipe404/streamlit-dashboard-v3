@@ -14,7 +14,7 @@ class DataProcessor:
         if df.empty:
             return df
 
-        # Baseado no debug: ['UNIDADE', 'RAZÃO', 'COMERCIAL', 'ENDEREÇO', 'CIDADE', 'UF', 'CEP', 'TELEFONES', 'E-MAIL', 'RESPONSÁVEL', '', 'ENDEREÇO COMPLETO', 'lat', 'long', '-', '-', 'tel', 'Col_17', 'Col_18', 'Col_19']
+        # Baseado no debug
         columns_map = {
             0: 'UNIDADE',      # UNIDADE
             1: 'RAZAO',        # RAZÃO
@@ -54,7 +54,7 @@ class DataProcessor:
         if df.empty:
             return df
 
-        # Com headers únicos agora: ['MUNICÍPIO - IBGE', 'UF', 'CIDADE - ESTADO', 'LAT', 'LNG', 'POLO MAIS PRÓXIMO - ENDEREÇO COMPLETO', 'ENDEREÇO COMPLETO', 'LAT_1', 'LNG_1', 'UNIDADE/POLO', 'DISTÂNCIA KM', ...]
+        # Com headers únicos
         columns_map = {
             0: 'MUNICIPIO_IBGE',    # MUNICÍPIO - IBGE
             1: 'UF',                # UF
@@ -96,7 +96,7 @@ class DataProcessor:
         if df.empty:
             return df
 
-        # Baseado no debug: ['Matrícula', 'Nome', 'CPF', 'CEP', 'Cidade', 'UF', 'cidade+uf', 'Bairro', 'Endereço', 'Número', 'Curso', 'Polo', 'POLO MAIS PRÓXIMO']
+        # Baseado no debug
         columns_map = {
             2: 'CPF',                # CPF
             3: 'CEP',                # CEP
@@ -129,7 +129,9 @@ class DataProcessor:
         return df_clean
 
     @staticmethod
-    def _clean_coordinates(df: pd.DataFrame, lat_col: str = 'lat', lng_col: str = 'long') -> pd.DataFrame:
+    def _clean_coordinates(
+            df: pd.DataFrame, lat_col: str = 'lat',
+            lng_col: str = 'long') -> pd.DataFrame:
         """Limpa e converte coordenadas para float"""
         try:
             if lat_col in df.columns and len(df) > 0:
@@ -165,7 +167,8 @@ class DataProcessor:
                 try:
                     # Trabalhar com a Series específica
                     series = df[col].fillna('').astype(str)
-                    # Remover caracteres não numéricos, manter apenas dígitos, pontos e vírgulas
+                    # Remover caracteres não numéricos,
+                    # manter apenas dígitos, pontos e vírgulas
                     series = series.str.replace(r'[^\d.,]', '', regex=True)
                     series = series.str.replace(',', '.')
                     # Remover strings vazias
@@ -233,8 +236,11 @@ class DataProcessor:
         return df
 
     @staticmethod
-    def merge_alunos_municipios(alunos_df: pd.DataFrame, municipios_df: pd.DataFrame) -> pd.DataFrame:
-        """Faz merge dos dados de alunos com municípios para obter coordenadas"""
+    def merge_alunos_municipios(
+            alunos_df: pd.DataFrame,
+            municipios_df: pd.DataFrame) -> pd.DataFrame:
+        """Faz merge dos dados de alunos
+        com municípios para obter coordenadas"""
         if alunos_df.empty or municipios_df.empty:
             return alunos_df
 
@@ -263,7 +269,8 @@ class DataProcessor:
             return alunos_df
 
     @staticmethod
-    def calculate_coverage_metrics(polos_df: pd.DataFrame, municipios_df: pd.DataFrame) -> Dict:
+    def calculate_coverage_metrics(
+            polos_df: pd.DataFrame, municipios_df: pd.DataFrame) -> Dict:
         """Calcula métricas de cobertura dos polos"""
         metrics = {
             'total_municipios': 0,
@@ -290,21 +297,26 @@ class DataProcessor:
                     if not municipios_validos.empty:
                         # Municípios dentro da cobertura
                         municipios_cobertura = municipios_validos[
-                            municipios_validos['DISTANCIA_KM'] <= coverage_radius
+                            municipios_validos[
+                                'DISTANCIA_KM'] <= coverage_radius
                         ]
 
                         metrics['total_municipios'] = len(municipios_validos)
                         metrics['municipios_cobertos'] = len(
                             municipios_cobertura)
                         metrics['percentual_cobertura'] = (
-                            len(municipios_cobertura) / len(municipios_validos)) * 100
-                        metrics['distancia_media'] = municipios_validos['DISTANCIA_KM'].mean(
+                            len(municipios_cobertura) / len(
+                                municipios_validos)) * 100
+                        metrics['distancia_media'] = municipios_validos[
+                            'DISTANCIA_KM'].mean(
                         )
 
                         if 'TOTAL_ALUNOS' in municipios_df.columns:
-                            metrics['alunos_cobertos'] = municipios_cobertura['TOTAL_ALUNOS'].sum(
+                            metrics['alunos_cobertos'] = municipios_cobertura[
+                                'TOTAL_ALUNOS'].sum(
                             )
-                            metrics['total_alunos'] = municipios_validos['TOTAL_ALUNOS'].sum(
+                            metrics['total_alunos'] = municipios_validos[
+                                'TOTAL_ALUNOS'].sum(
                             )
 
         except Exception as e:

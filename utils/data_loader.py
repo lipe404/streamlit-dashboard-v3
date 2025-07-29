@@ -10,10 +10,14 @@ class GoogleSheetsLoader:
 
     @staticmethod
     @st.cache_data(ttl=300)  # Cache por 5 minutos
-    def load_sheet_data(api_key: str, sheet_id: str, sheet_name: str) -> pd.DataFrame:
+    def load_sheet_data(
+            api_key: str, sheet_id: str, sheet_name: str) -> pd.DataFrame:
         """Carrega dados de uma planilha específica do Google Sheets"""
         try:
-            url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{sheet_name}?key={api_key}"
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{
+                sheet_id}/values/{
+                    sheet_name}?key={
+                        api_key}"
             response = requests.get(url)
             response.raise_for_status()
 

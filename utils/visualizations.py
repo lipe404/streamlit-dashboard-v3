@@ -40,14 +40,16 @@ class Visualizations:
                             """,
                             tooltip=polo.get('UNIDADE', 'N/A'),
                             icon=folium.Icon(
-                                color='blue', icon='graduation-cap', prefix='fa')
+                                color='blue',
+                                icon='graduation-cap', prefix='fa')
                         ).add_to(m)
                 except Exception as e:
                     continue
 
         return m
 
-    def create_heatmap(self, polos_df: pd.DataFrame, map_config: Dict) -> folium.Map:
+    def create_heatmap(
+            self, polos_df: pd.DataFrame, map_config: Dict) -> folium.Map:
         """Cria mapa de calor dos polos"""
         m = folium.Map(
             location=[map_config['center_lat'], map_config['center_lon']],
@@ -70,8 +72,9 @@ class Visualizations:
 
         return m
 
-    def create_coverage_map(self, polos_df: pd.DataFrame, municipios_df: pd.DataFrame,
-                            map_config: Dict) -> folium.Map:
+    def create_coverage_map(
+        self, polos_df: pd.DataFrame, municipios_df: pd.DataFrame,
+            map_config: Dict) -> folium.Map:
         """Cria mapa de cobertura com raios de 100km"""
         m = folium.Map(
             location=[map_config['center_lat'], map_config['center_lon']],
@@ -94,7 +97,9 @@ class Visualizations:
                             location=[lat_float, lng_float],
                             popup=f"<b>{polo.get('UNIDADE', 'N/A')}</b>",
                             icon=folium.Icon(
-                                color='red', icon='graduation-cap', prefix='fa')
+                                color='red',
+                                icon='graduation-cap',
+                                prefix='fa')
                         ).add_to(m)
 
                         # Círculo de cobertura (100km)
@@ -194,7 +199,8 @@ class Visualizations:
         except:
             return go.Figure()
 
-    def create_top_cities_chart(self, municipios_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
+    def create_top_cities_chart(
+            self, municipios_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
         """Gráfico de barras: Top cidades com mais alunos"""
         if municipios_df.empty or 'TOTAL_ALUNOS' not in municipios_df.columns:
             return go.Figure()
@@ -222,7 +228,8 @@ class Visualizations:
         except:
             return go.Figure()
 
-    def create_distance_vs_students_scatter(self, municipios_df: pd.DataFrame) -> go.Figure:
+    def create_distance_vs_students_scatter(
+            self, municipios_df: pd.DataFrame) -> go.Figure:
         """Scatter plot: Distância vs Número de Alunos"""
         if municipios_df.empty:
             return go.Figure()
@@ -252,7 +259,8 @@ class Visualizations:
         except:
             return go.Figure()
 
-    def create_distance_boxplot(self, municipios_df: pd.DataFrame) -> go.Figure:
+    def create_distance_boxplot(
+            self, municipios_df: pd.DataFrame) -> go.Figure:
         """Boxplot: Distribuição de distâncias por UF"""
         if municipios_df.empty or 'DISTANCIA_KM' not in municipios_df.columns or 'UF' not in municipios_df.columns:
             return go.Figure()
@@ -275,7 +283,8 @@ class Visualizations:
         except:
             return go.Figure()
 
-    def create_correlation_heatmap(self, municipios_df: pd.DataFrame) -> go.Figure:
+    def create_correlation_heatmap(
+            self, municipios_df: pd.DataFrame) -> go.Figure:
         """Heatmap de correlação"""
         if municipios_df.empty:
             return go.Figure()
@@ -303,7 +312,8 @@ class Visualizations:
         except:
             return go.Figure()
 
-    def create_students_by_course_chart(self, alunos_df: pd.DataFrame) -> go.Figure:
+    def create_students_by_course_chart(
+            self, alunos_df: pd.DataFrame) -> go.Figure:
         """Gráfico de barras: Distribuição de alunos por curso"""
         if alunos_df.empty or 'CURSO' not in alunos_df.columns:
             return go.Figure()
@@ -337,7 +347,8 @@ class Visualizations:
 
         try:
             # Calcular alinhamento
-            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df['POLO_MAIS_PROXIMO']
+            alunos_df['ALINHADO'] = alunos_df['POLO'] == alunos_df[
+                'POLO_MAIS_PROXIMO']
             alignment_counts = alunos_df['ALINHADO'].value_counts()
 
             fig = px.pie(
@@ -371,7 +382,8 @@ class Visualizations:
 
             # Preparar dados para Sankey
             all_polos = list(
-                set(fluxos['POLO'].tolist() + fluxos['POLO_MAIS_PROXIMO'].tolist()))
+                set(fluxos['POLO'].tolist() + fluxos[
+                    'POLO_MAIS_PROXIMO'].tolist()))
             polo_to_idx = {polo: idx for idx, polo in enumerate(all_polos)}
 
             source = [polo_to_idx[polo] for polo in fluxos['POLO']]
