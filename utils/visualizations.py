@@ -1551,6 +1551,115 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
+    def create_sales_comparison_chart(self, vendas_df: pd.DataFrame, comparison_type: str,
+                                      period1: str, period2: str) -> go.Figure:
+        """Cria gráfico de comparação entre períodos/tipos usando barras agrupadas."""
+
+        if vendas_df.empty:
+            return go.Figure()
+
+        try:
+            # Colunas para agrupamento
+            group_col_data = 'NIVEL'  # Para quando comparison_type é "meses" ou "parcerias"
+            group_col_period = 'MES_NOME'  # Para quando comparison_type é "modalidades"
+
+            if comparison_type == "meses":
+                # Comparação entre meses
+                vendas_p1 = vendas_df[vendas_df['MES_NOME'] == period1]
+                vendas_p2 = vendas_df[vendas_df['MES_NOME'] == period2]
+
+                # Agrupar por modalidade (NIVEL)
+                p1_data = vendas_p1[group_col_data].value_counts()
+                p2_data = vendas_p2[group_col_data].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                })
+
+                title = f'Comparação de Vendas: {period1} vs {period2}'
+
+            elif comparison_type == "parcerias":
+                # Comparação entre tipos de parceria
+                vendas_p1 = vendas_df[vendas_df['TIPO_PARCERIA'] == period1]
+                vendas_p2 = vendas_df[vendas_df['TIPO_PARCERIA'] == period2]
+
+                # Agrupar por modalidade (NIVEL)
+                p1_data = vendas_p1[group_col_data].value_counts()
+                p2_data = vendas_p2[group_col_data].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                })
+
+                title = f'Comparação de Vendas por Parceria: {period1} vs {period2}'
+
+            else:  # comparison_type == "modalidades"
+                # Comparação entre modalidades
+                vendas_p1 = vendas_df[vendas_df['NIVEL'] == period1]
+                vendas_p2 = vendas_df[vendas_df['NIVEL'] == period2]
+
+                # Agrupar por mês (MES_NOME)
+                p1_data = vendas_p1[group_col_period].value_counts()
+                p2_data = vendas_p2[group_col_period].value_counts()
+
+                # Combinar dados
+                comparison_df = pd.DataFrame({
+                    period1: p1_data,
+                    period2: p2_data
+                })
+
+                title = f'Comparação de Modalidades: {period1} vs {period2}'
+
+            # Preencher NaNs com 0 (para categorias que não existem em um dos períodos)
+            comparison_df = comparison_df.fillna(0)
+
+            # Reset index e renomear a coluna do índice para 'Categoria'
+            # Isso garante que a coluna de ID para o melt será sempre 'Categoria'
+            comparison_df = comparison_df.reset_index(names=['Categoria'])
+
+            # Realizar o melt
+            comparison_df = comparison_df.melt(
+                # A coluna 'Categoria' agora contém os nomes das modalidades/meses
+                id_vars='Categoria',
+                var_name='Período',
+                value_name='Vendas'
+            )
+
+            # Criar gráfico de barras agrupadas
+            fig = px.bar(
+                comparison_df,
+                x='Categoria',
+                y='Vendas',
+                color='Período',
+                title=title,
+                barmode='group',
+                text='Vendas'
+            )
+
+            fig.update_layout(
+                xaxis_title='Categoria',
+                yaxis_title='Número de Vendas',
+                height=500,
+                xaxis=dict(tickangle=45)
+            )
+
+            fig.update_traces(textposition='outside')
+
+            return fig
+
+        except Exception as e:
+            # Adicionando st.error para debug
+            st.error(f"Erro ao gerar comparação: {str(e)}")
+            return go.Figure().add_annotation(
+                text=f"Erro ao gerar comparação: {str(e)}",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="red")
+            )
+
     def create_detailed_sales_comparison_timeline(self, vendas_df: pd.DataFrame, comparison_type: str, item1: str, item2: str) -> go.Figure:
         """Cria gráfico de linha para comparação detalhada de vendas entre dois itens/períodos."""
         if vendas_df.empty:
