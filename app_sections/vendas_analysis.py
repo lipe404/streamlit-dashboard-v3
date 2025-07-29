@@ -204,20 +204,22 @@ class VendasAnalysis(BasePage):
 
             try:
                 # É importante usar MES_ANO para a contagem e depois MES_NOME para exibição
-                vendas_por_mes_ord = vendas_df.groupby(
-                    'MES_NOME')['CPF'].count().reset_index(name='Vendas')
+                vendas_por_mes_series = vendas_df.groupby('MES_NOME').size()
 
                 # Ordenar meses corretamente
                 ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+                vendas_por_mes_reindexado = vendas_por_mes_series.reindex(ordem_meses, fill_value=0)
+
+                vendas_por_mes_ord = vendas_por_mes_reindexado.reset_index()
+                vendas_por_mes_ord.columns = ['MES_NOME', 'Vendas']
 
                 vendas_por_mes_ord['MES_NOME'] = pd.Categorical(
                     vendas_por_mes_ord['MES_NOME'],
                     categories=ordem_meses,
                     ordered=True
                 )
-                vendas_por_mes_ord = vendas_por_mes_ord.sort_values(
-                    'MES_NOME').fillna(0)
 
                 fig_sazonalidade = px.bar(
                     vendas_por_mes_ord,
