@@ -264,6 +264,7 @@ class DataProcessor:
             st.error(f"Erro ao processar dados de vendas: {str(e)}")
             return pd.DataFrame()
 
+    # Dentro da classe DataProcessor, no método _process_payment_date
     @staticmethod
     def _process_payment_date(df: pd.DataFrame) -> pd.DataFrame:
         """Processa e converte datas de pagamento"""
@@ -271,9 +272,15 @@ class DataProcessor:
             return df
 
         try:
-            # Converter para datetime
+            # Converter para datetime, tratando erros
             df['DT_PAGTO'] = pd.to_datetime(
                 df['DT_PAGTO'], format='%d/%m/%Y', errors='coerce')
+
+            # Remover linhas onde a conversão falhou (Dt Pagto é NaN)
+            df = df.dropna(subset=['DT_PAGTO'])
+
+            if df.empty:
+                return df
 
             # Extrair informações de data
             df['ANO'] = df['DT_PAGTO'].dt.year
@@ -282,6 +289,7 @@ class DataProcessor:
             df['TRIMESTRE'] = df['DT_PAGTO'].dt.quarter
             df['SEMESTRE'] = df['DT_PAGTO'].dt.month.apply(
                 lambda x: 1 if x <= 6 else 2)
+            df['DIA_DO_MES'] = df['DT_PAGTO'].dt.day
 
             # Nomes dos meses em português
             meses_pt = {
@@ -293,14 +301,15 @@ class DataProcessor:
             df['MES_NOME'] = df['MES'].map(meses_pt)
 
             # Filtrar apenas dados válidos (remover datas futuras ou muito antigas)
-            current_year = 2025
+            # Pega o ano atual dinamicamente
+            current_year = pd.to_datetime('today').year
             df = df[(df['ANO'] >= 2020) & (df['ANO'] <= current_year)]
 
             return df
 
         except Exception as e:
-            st.warning(f"Erro ao processar datas: {str(e)}")
-            return df
+            st.warning(f"Erro ao processar datas de pagamento: {str(e)}")
+            return pd.DataFrame()
 
     @staticmethod
     def _clean_coordinates(

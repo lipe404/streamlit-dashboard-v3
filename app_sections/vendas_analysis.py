@@ -27,8 +27,11 @@ class VendasAnalysis(BasePage):
         # Análise de cursos e modalidades
         self._render_courses_modalities_analysis(vendas_df)
 
-        # Análise comparativa
+        # Análise comparativa (barras)
         self._render_comparative_analysis(vendas_df)
+
+        # Análise Comparativa Detalhada (linhas)
+        self._render_detailed_comparative_analysis(vendas_df)
 
     def _display_sales_metrics(self, vendas_df):
         """Exibe métricas principais de vendas"""
@@ -380,3 +383,109 @@ class VendasAnalysis(BasePage):
 
         except Exception as e:
             st.warning(f"Não foi possível calcular insights: {str(e)}")
+
+    def _render_detailed_comparative_analysis(self, vendas_df: pd.DataFrame):
+        st.subheader("📊 Análise Comparativa Detalhada (Evolução em Linha)")
+
+        if vendas_df.empty:
+            st.warning(
+                "Dados de vendas não disponíveis para análise detalhada de comparação.")
+            return
+
+        comparison_options = {
+            "Entre Tipos de Parceria": "tipos_parceria",
+            "Mesmo Mês em Anos Diferentes": "mesmo_mes_anos_diferentes"
+        }
+
+        selected_comparison_type_label = st.selectbox(
+            "Escolha o tipo de comparação:",
+            list(comparison_options.keys()),
+            key="detailed_comp_type_select"  # Chave única para o selectbox
+        )
+
+        comparison_key = comparison_options[selected_comparison_type_label]
+
+        item1 = None
+        item2 = None
+
+        if comparison_key == "parceiros_especificos":
+            # Usar 'ALUNO' como proxy para parceiros/clientes específicos
+            available_partners = sorted(
+                vendas_df['ALUNO'].dropna().unique().tolist())
+            if len(available_partners) < 2:
+                st.info(
+                    "Dados insuficientes para comparar parceiros específicos (pelo menos 2 alunos únicos necessários).")
+                return
+            col1, col2 = st.columns(2)
+            with col1:
+                item1 = st.selectbox("Selecione o primeiro aluno/parceiro:",
+                                     available_partners, key="partner1_comp_select")
+            with col2:
+                item2 = st.selectbox("Selecione o segundo aluno/parceiro:", [
+                                     p for p in available_partners if p != item1], key="partner2_comp_select")
+
+        elif comparison_key == "tipos_parceria":
+            available_types = sorted(
+                vendas_df['TIPO_PARCERIA'].dropna().unique().tolist())
+            if len(available_types) < 2:
+                st.info(
+                    "Dados insuficientes para comparar tipos de parceria (pelo menos 2 tipos de parceria únicos necessários).")
+                return
+            col1, col2 = st.columns(2)
+            with col1:
+                item1 = st.selectbox(
+                    "Selecione o primeiro tipo:", available_types, key="type1_comp_select")
+            with col2:
+                item2 = st.selectbox("Selecione o segundo tipo:", [
+                                     t for t in available_types if t != item1], key="type2_comp_select")
+
+        elif comparison_key == "mesmo_mes_anos_diferentes":
+            # Obter meses únicos (ex: 'Janeiro', 'Fevereiro')
+            available_months = sorted(
+                vendas_df['MES_NOME'].dropna().unique().tolist())
+            if not available_months:
+                st.info("Nenhum mês disponível para comparação de anos.")
+                return
+
+            selected_month = st.selectbox(
+                "Selecione o mês para comparar:", available_months, key="month_for_year_comp_select")
+
+            # Obter anos disponíveis para o mês selecionado
+            available_years_for_month = sorted(
+                vendas_df[vendas_df['MES_NOME'] == selected_month]['ANO'].dropna().unique().astype(int).tolist())
+
+            if len(available_years_for_month) < 2:
+                st.info(
+                    f"Dados insuficientes para comparar anos no mês de {selected_month} (pelo menos 2 anos com dados neste mês necessários).")
+                return
+
+            col1, col2 = st.columns(2)
+            with col1:
+                year1 = st.selectbox(
+                    f"Selecione o primeiro ano para {selected_month}:", available_years_for_month, key="year1_comp_select")
+            with col2:
+                # Filtrar para garantir que o segundo ano não seja o mesmo que o primeiro
+                years_for_second_select = [
+                    y for y in available_years_for_month if y != year1]
+                if not years_for_second_select:  # Caso só haja um ano
+                    st.warning("Não há outro ano para comparar neste mês.")
+                    return
+                year2 = st.selectbox(
+                    f"Selecione o segundo ano para {selected_month}:", years_for_second_select, key="year2_comp_select")
+
+            # Formato para passar para o visualizations
+            item1 = f"{selected_month} - {year1}"
+            item2 = f"{selected_month} - {year2}"
+
+        # Renderizar gráfico se os itens forem selecionados
+        if item1 and item2:
+            try:
+                fig = self.viz.create_detailed_sales_comparison_timeline(
+                    vendas_df, comparison_key, item1, item2)
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(
+                    f"Erro ao gerar o gráfico de comparação detalhada: {str(e)}")
+                st.exception(e)  # Para ver o stack trace completo
+        else:
+            st.info("Selecione os itens para realizar a comparação detalhada.")

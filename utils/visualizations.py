@@ -1551,111 +1551,140 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    def create_sales_comparison_chart(self, vendas_df: pd.DataFrame, comparison_type: str,
-                                      period1: str, period2: str) -> go.Figure:
-        """Cria gráfico de comparação entre períodos/tipos"""
-
+    def create_detailed_sales_comparison_timeline(self, vendas_df: pd.DataFrame, comparison_type: str, item1: str, item2: str) -> go.Figure:
+        """Cria gráfico de linha para comparação detalhada de vendas entre dois itens/períodos."""
         if vendas_df.empty:
-            return go.Figure()
+            return go.Figure().add_annotation(
+                text="DataFrame de vendas vazio.",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=14, color="gray")
+            )
+
+        df_filtered = pd.DataFrame()
+        title_suffix = ""
+        x_axis_title = "Período (Mês/Ano)"
+        plot_x_col = 'MES_ANO'  # Default para MES_ANO
+        x_axis_type = 'category'  # Default para categoria (para MES_ANO)
+        plot_color_col = ''  # Column used to differentiate lines
 
         try:
-            # Colunas para agrupamento
-            group_col_data = 'NIVEL'  # Para quando comparison_type é "meses" ou "parcerias"
-            group_col_period = 'MES_NOME'  # Para quando comparison_type é "modalidades"
+            if comparison_type == "parceiros_especificos":
+                df_filtered = vendas_df[vendas_df['ALUNO'].isin(
+                    [item1, item2])].copy()
+                title_suffix = f"Entre Parceiros: {item1} vs {item2}"
+                plot_color_col = 'ALUNO'
 
-            if comparison_type == "meses":
-                # Comparação entre meses
-                vendas_p1 = vendas_df[vendas_df['MES_NOME'] == period1]
-                vendas_p2 = vendas_df[vendas_df['MES_NOME'] == period2]
+            elif comparison_type == "tipos_parceria":
+                df_filtered = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
+                    [item1, item2])].copy()
+                title_suffix = f"Entre Tipos de Parceria: {item1} vs {item2}"
+                plot_color_col = 'TIPO_PARCERIA'
 
-                # Agrupar por modalidade (NIVEL)
-                p1_data = vendas_p1[group_col_data].value_counts()
-                p2_data = vendas_p2[group_col_data].value_counts()
+            elif comparison_type == "mesmo_mes_anos_diferentes":
+                month_name, year1_str = item1.split(' - ')
+                _, year2_str = item2.split(' - ')
 
-                # Combinar dados
-                comparison_df = pd.DataFrame({
-                    period1: p1_data,
-                    period2: p2_data
-                })
+                year1 = int(year1_str)
+                year2 = int(year2_str)
 
-                title = f'Comparação de Vendas: {period1} vs {period2}'
+                df_filtered = vendas_df[(vendas_df['MES_NOME'] == month_name) &
+                                        (vendas_df['ANO'].isin([year1, year2]))].copy()
+                title_suffix = f"Vendas em {month_name}: {year1} vs {year2}"
+                plot_color_col = 'ANO'  # Each year will be a different line
+                plot_x_col = 'DIA_DO_MES'  # X-axis will be day of month
+                x_axis_title = "Dia do Mês"
+                # <-- MUDANÇA CRÍTICA AQUI! Para dias numéricos, use linear.
+                x_axis_type = 'linear'
 
-            elif comparison_type == "parcerias":
-                # Comparação entre tipos de parceria
-                vendas_p1 = vendas_df[vendas_df['TIPO_PARCERIA'] == period1]
-                vendas_p2 = vendas_df[vendas_df['TIPO_PARCERIA'] == period2]
+                if 'DIA_DO_MES' not in df_filtered.columns:
+                    return go.Figure().add_annotation(
+                        text="Coluna 'DIA_DO_MES' não disponível para esta comparação. Verifique o processamento de dados.",
+                        xref="paper", yref="paper", x=0.5, y=0.5,
+                        showarrow=False, font=dict(size=14, color="red")
+                    )
+            else:
+                return go.Figure().add_annotation(
+                    text="Tipo de comparação inválido.",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=14, color="gray")
+                )
 
-                # Agrupar por modalidade (NIVEL)
-                p1_data = vendas_p1[group_col_data].value_counts()
-                p2_data = vendas_p2[group_col_data].value_counts()
+            if df_filtered.empty:
+                return go.Figure().add_annotation(
+                    text="Nenhum dado encontrado para os filtros selecionados.",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=14, color="gray")
+                )
 
-                # Combinar dados
-                comparison_df = pd.DataFrame({
-                    period1: p1_data,
-                    period2: p2_data
-                })
+            # --- Data Aggregation ---
+            if comparison_type == "mesmo_mes_anos_diferentes":
+                sales_data = df_filtered.groupby(
+                    [plot_x_col, plot_color_col]).size().reset_index(name='Vendas')
+                sales_data = sales_data.sort_values(plot_x_col)
+                sales_data[plot_color_col] = sales_data[plot_color_col].astype(
+                    str)  # Ensure year is string for color/legend
+            else:
+                if 'MES_ANO_ORDENAVEL' not in df_filtered.columns:
+                    # Garantir que MES_ANO_ORDENAVEL existe para ordenação
+                    df_filtered['MES_ANO_ORDENAVEL'] = pd.to_datetime(
+                        df_filtered['MES_ANO'])
+                sales_data = df_filtered.groupby(
+                    ['MES_ANO_ORDENAVEL', plot_color_col]).size().reset_index(name='Vendas')
+                sales_data = sales_data.sort_values('MES_ANO_ORDENAVEL')
+                sales_data['MES_ANO'] = sales_data['MES_ANO_ORDENAVEL'].dt.strftime(
+                    '%Y-%m')  # Format back to string
+                plot_x_col = 'MES_ANO'  # Override x-column for this case
 
-                title = f'Comparação de Vendas por Parceria: {period1} vs {period2}'
+            if sales_data.empty:
+                return go.Figure().add_annotation(
+                    text="Dados insuficientes para a evolução temporal.",
+                    xref="paper", yref="paper", x=0.5, y=0.5,
+                    showarrow=False, font=dict(size=14, color="gray")
+                )
 
-            else:  # comparison_type == "modalidades"
-                # Comparação entre modalidades
-                vendas_p1 = vendas_df[vendas_df['NIVEL'] == period1]
-                vendas_p2 = vendas_df[vendas_df['NIVEL'] == period2]
-
-                # Agrupar por mês (MES_NOME)
-                p1_data = vendas_p1[group_col_period].value_counts()
-                p2_data = vendas_p2[group_col_period].value_counts()
-
-                # Combinar dados
-                comparison_df = pd.DataFrame({
-                    period1: p1_data,
-                    period2: p2_data
-                })
-
-                title = f'Comparação de Modalidades: {period1} vs {period2}'
-
-            # Preencher NaNs com 0 (para categorias que não existem em um dos períodos)
-            comparison_df = comparison_df.fillna(0)
-
-            # Reset index e renomear a coluna do índice para 'Categoria'
-            # Isso garante que a coluna de ID para o melt será sempre 'Categoria'
-            comparison_df = comparison_df.reset_index(names=['Categoria'])
-
-            # Realizar o melt
-            comparison_df = comparison_df.melt(
-                # A coluna 'Categoria' agora contém os nomes das modalidades/meses
-                id_vars='Categoria',
-                var_name='Período',
-                value_name='Vendas'
-            )
-
-            # Criar gráfico de barras agrupadas
-            fig = px.bar(
-                comparison_df,
-                x='Categoria',
+            # --- Plotting ---
+            fig = px.line(
+                sales_data,
+                x=plot_x_col,
                 y='Vendas',
-                color='Período',
-                title=title,
-                barmode='group',
-                text='Vendas'
+                color=plot_color_col,
+                title=f'Evolução de Vendas {title_suffix}',
+                markers=True,
+                line_shape='spline',
+                color_discrete_sequence=px.colors.qualitative.Dark24
             )
+
+            # Configuração dinâmica do eixo X
+            xaxis_config = {
+                'tickangle': 45,
+                'title': x_axis_title,  # Título do eixo X
+                'type': x_axis_type,  # Use o tipo definido dinamicamente
+            }
+            # Adicionar categoryorder apenas se o tipo for 'category'
+            if x_axis_type == 'category':
+                xaxis_config['categoryorder'] = 'category ascending'
 
             fig.update_layout(
-                xaxis_title='Categoria',
+                xaxis=xaxis_config,  # Aplicar a configuração dinâmica
                 yaxis_title='Número de Vendas',
+                hovermode='x unified',
+                legend_title=title_suffix,
                 height=500,
-                xaxis=dict(tickangle=45)
             )
 
-            fig.update_traces(textposition='outside')
-
+            fig.update_traces(
+                hovertemplate='<b>%{fullData.name}</b><br>' +
+                '%{xaxis.title.text}: %{x}<br>' +
+                'Vendas: %{y}<br>' +
+                '<extra></extra>'
+            )
             return fig
 
         except Exception as e:
-            # Adicionando st.error para debug
-            st.error(f"Erro ao gerar comparação: {str(e)}")
+            st.error(
+                f"Erro ao gerar gráfico detalhado de comparação: {str(e)}")
             return go.Figure().add_annotation(
-                text=f"Erro ao gerar comparação: {str(e)}",
+                text=f"Erro ao gerar gráfico detalhado de comparação: {str(e)}",
                 xref="paper", yref="paper", x=0.5, y=0.5,
                 showarrow=False, font=dict(size=14, color="red")
             )
