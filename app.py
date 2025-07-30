@@ -11,10 +11,12 @@ from app_sections.coverage_analysis import CoverageAnalysis
 from app_sections.students_analysis import StudentsAnalysis
 from app_sections.alignment_analysis import AlignmentAnalysis
 from app_sections.vendas_analysis import VendasAnalysis
+from app_sections.opportunity_analysis import OpportunityAnalysis
 
 # Imports externos
 import streamlit as st
 import pandas as pd
+import re
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -109,7 +111,7 @@ def display_metrics(polos_df, municipios_df, alunos_df, vendas_df):
 
     with col3:
         total_municipios = len(municipios_df) if not municipios_df.empty else 0
-        st.metric("Municípios Mapeados", total_municipios)
+        st.metric("Total de Municípios", total_municipios)
 
     with col4:
         total_alunos = alunos_df['CPF'].nunique(
@@ -154,7 +156,7 @@ def main():
         "🎯 Análise de Cobertura e Eficiência": CoverageAnalysis,
         "👥 Análise de Alunos e Cursos": StudentsAnalysis,
         "🔄 Análise de Alinhamento de Polos": AlignmentAnalysis,
-        "💰 Análise de Vendas": VendasAnalysis
+        "💰 Análise de Vendas": VendasAnalysis,
     }
 
     selected_section = st.sidebar.selectbox(
@@ -166,8 +168,13 @@ def main():
     # Passar vendas_df para a nova seção
     if selected_section == "💰 Análise de Vendas":
         section_instance = section_class(viz, MAP_CONFIG)
+        # VendasAnalysis só precisa de vendas_df
         section_instance.render(vendas_df)
-    else:
+    elif selected_section == "🌟 Análise de Oportunidades":
+        section_instance = section_class(viz, MAP_CONFIG)
+        # OpportunityAnalysis precisa de todos
+        section_instance.render(polos_df, municipios_df, alunos_df)
+    else:  # As outras seções (Geographic, Municipalities, Coverage, Students, Alignment)
         section_instance = section_class(viz, MAP_CONFIG)
         section_instance.render(polos_df, municipios_df, alunos_df)
 

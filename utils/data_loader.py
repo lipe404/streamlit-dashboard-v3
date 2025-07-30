@@ -9,7 +9,7 @@ class GoogleSheetsLoader:
     """Classe para carregar dados do Google Sheets"""
 
     @staticmethod
-    @st.cache_data(ttl=300)  # Cache por 5 minutos
+    @st.cache_data(ttl=600)  # Cache por 10 minutos
     def load_sheet_data(
             api_key: str, sheet_id: str, sheet_name: str) -> pd.DataFrame:
         """Carrega dados de uma planilha específica do Google Sheets"""

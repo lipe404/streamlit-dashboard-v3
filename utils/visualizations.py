@@ -9,7 +9,8 @@ import numpy as np
 import folium
 from folium import plugins
 import streamlit as st
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
+from streamlit_folium import st_folium
 
 
 class Visualizations:
@@ -1697,7 +1698,8 @@ class Visualizations:
                 year2 = int(year2_str)
 
                 df_filtered = vendas_df[(vendas_df['MES_NOME'] == month_name) &
-                                        (vendas_df['ANO'].isin([year1, year2]))].copy()
+                                        (vendas_df['ANO'].isin([
+                                            year1, year2]))].copy()
                 title_suffix = f"Vendas em {month_name}: {year1} vs {year2}"
                 plot_color_col = 'ANO'  # Each year will be a different line
                 plot_x_col = 'DIA_DO_MES'  # X-axis will be day of month
@@ -1728,7 +1730,8 @@ class Visualizations:
             # --- Data Aggregation ---
             if comparison_type == "mesmo_mes_anos_diferentes":
                 sales_data = df_filtered.groupby(
-                    [plot_x_col, plot_color_col]).size().reset_index(name='Vendas')
+                    [plot_x_col, plot_color_col]).size().reset_index(
+                        name='Vendas')
                 sales_data = sales_data.sort_values(plot_x_col)
                 sales_data[plot_color_col] = sales_data[plot_color_col].astype(
                     str)  # Ensure year is string for color/legend
@@ -1738,9 +1741,11 @@ class Visualizations:
                     df_filtered['MES_ANO_ORDENAVEL'] = pd.to_datetime(
                         df_filtered['MES_ANO'])
                 sales_data = df_filtered.groupby(
-                    ['MES_ANO_ORDENAVEL', plot_color_col]).size().reset_index(name='Vendas')
+                    ['MES_ANO_ORDENAVEL', plot_color_col]).size().reset_index(
+                        name='Vendas')
                 sales_data = sales_data.sort_values('MES_ANO_ORDENAVEL')
-                sales_data['MES_ANO'] = sales_data['MES_ANO_ORDENAVEL'].dt.strftime(
+                sales_data['MES_ANO'] = sales_data[
+                    'MES_ANO_ORDENAVEL'].dt.strftime(
                     '%Y-%m')  # Format back to string
                 plot_x_col = 'MES_ANO'  # Override x-column for this case
 
@@ -1793,7 +1798,116 @@ class Visualizations:
             st.error(
                 f"Erro ao gerar gráfico detalhado de comparação: {str(e)}")
             return go.Figure().add_annotation(
-                text=f"Erro ao gerar gráfico detalhado de comparação: {str(e)}",
+                text=f"Erro ao gerar gráfico detalhado de comparação: {
+                    str(e)}",
                 xref="paper", yref="paper", x=0.5, y=0.5,
                 showarrow=False, font=dict(size=14, color="red")
             )
+
+    def create_opportunity_map(self, opportunity_df: pd.DataFrame, polos_df: pd.DataFrame, map_config: Dict) -> folium.Map:
+        """
+        Cria um mapa interativo para visualizar oportunidades de expansão.
+        Municípios são coloridos com base na presença de polo, população e alunos.
+        """
+        m = folium.Map(
+            location=[map_config['center_lat'], map_config['center_lon']],
+            zoom_start=map_config['zoom']
+        )
+
+        if opportunity_df.empty:
+            return m
+
+        # Adicionar municípios com base na oportunidade (sem polo, alta pop, poucos alunos)
+        for idx, row in opportunity_df.iterrows():
+            try:
+                lat_val = row.get('LAT', None)
+                lng_val = row.get('LNG', None)
+
+                # Certificar-se de que as coordenadas são válidas e numéricas
+                if pd.isna(lat_val) or pd.isna(lng_val) or not isinstance(lat_val, (int, float)) or not isinstance(lng_val, (int, float)):
+                    continue  # Pular se coordenadas inválidas
+
+                municipio_name = row.get('MUNICIPIO_IBGE', 'N/A')
+                uf = row.get('UF', 'N/A')
+                pop = row.get('POPULACAO_2022', 0)
+                total_alunos = row.get('TOTAL_ALUNOS', 0)
+                has_polo = row.get('TEM_POLO', False)
+                idh = row.get('IDH_2010', np.nan)
+                pib = row.get('PIB_PER_CAPITA_2021', np.nan)
+
+                color = 'gray'  # Default (Baixa Oportunidade ou Coberto)
+
+                if has_polo:
+                    color = 'blue'  # Município já tem um polo
+                elif pop >= 100000 and total_alunos < 100:  # Alta População e Baixos Alunos, sem polo
+                    color = 'red'  # Alta Oportunidade
+                elif pop >= 50000 and total_alunos == 0:  # Média População e Zero Alunos, sem polo
+                    color = 'orange'  # Média Oportunidade
+
+                # Formatar IDH e PIB para o popup
+                idh_str = f"{idh:.3f}" if pd.notna(idh) else "N/A"
+                pib_str = f"R\$ {pib:,.0f}" if pd.notna(pib) else "N/A"
+
+                popup_html = f"""
+                <b>{municipio_name} ({uf})</b><br>
+                População: {pop:,.0f}<br>
+                Alunos: {total_alunos}<br>
+                Tem Polo: {'Sim' if has_polo else 'Não'}<br>
+                IDH: {idh_str}<br>
+                PIB p/c: {pib_str}
+                """
+
+                folium.CircleMarker(
+                    location=[float(lat_val), float(lng_val)],
+                    radius=5,
+                    color=color,
+                    fill=True,
+                    fill_color=color,
+                    fill_opacity=0.7,
+                    popup=folium.Popup(popup_html, max_width=300)
+                ).add_to(m)
+            except Exception as e:
+                continue
+
+        # Opcional: Adicionar polos como marcadores no topo
+        if not polos_df.empty:
+            for _, polo in polos_df.iterrows():
+                try:
+                    lat_val = polo.get('lat', None)
+                    lng_val = polo.get('long', None)
+                    if pd.notna(lat_val) and pd.notna(lng_val) and isinstance(lat_val, (int, float)) and isinstance(lng_val, (int, float)):
+                        folium.Marker(
+                            location=[float(lat_val), float(lng_val)],
+                            popup=f"<b>{polo.get('UNIDADE', 'N/A')}</b>",
+                            # Cor distinta para polos
+                            icon=folium.Icon(
+                                color='purple',
+                                icon='graduation-cap', prefix='fa')
+                        ).add_to(m)
+                except:
+                    continue
+
+        # Adicionar uma legenda simples para o mapa de oportunidade
+        legend_html = '''
+             <div style="position: fixed;
+             bottom: 50px; left: 50px; width: 180px; height: 160px;
+             background-color:white; border:2px solid grey;
+             z-index:9999; font-size:14px;
+             padding: 10px;">
+               &nbsp; <b>Legenda Oportunidade</b> <br>
+               &nbsp; <i style="background:red;border-radius:50%;
+               width:10px;height:10px;
+               display:inline-block;"></i> Alta Oportunidade <br>
+               &nbsp; <i style="background:orange;border-radius:50%;width:10px;
+               height:10px;display:inline-block;"></i> Média Oportunidade <br>
+               &nbsp; <i style="background:blue;border-radius:50%;width:10px;
+               height:10px;display:inline-block;"></i> Com Polo <br>
+               &nbsp; <i style="background:gray;border-radius:50%;width:10px;
+               height:10px;display:inline-block;"></i> Baixa Oportunidade <br>
+               &nbsp; <i style="background:purple;width:15px;height:15px;
+               display:inline-block;"></i> Polo (Marcador) <br>
+             </div>
+             '''
+        m.get_root().html.add_child(folium.Element(legend_html))
+
+        return m
