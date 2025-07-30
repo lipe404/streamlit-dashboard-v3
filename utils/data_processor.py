@@ -8,8 +8,6 @@ import re
 class DataProcessor:
     """Classe para processamento e limpeza dos dados"""
 
-    # Adicione este método à classe DataProcessor
-
     @staticmethod
     def enhance_municipal_data_for_coverage(municipios_df: pd.DataFrame, polos_df: pd.DataFrame) -> pd.DataFrame:
         """Aprimora dados municipais para análise de cobertura"""
@@ -208,12 +206,14 @@ class DataProcessor:
 
         try:
             # Mapeamento das colunas baseado nas posições especificadas
+            # ADICIONADO: Coluna M (índice 12) 'Qtd. Matrículas'
             columns_map = {
                 2: 'CPF',                    # Coluna C (índice 2)
                 3: 'ALUNO',                  # Coluna D (índice 3)
                 4: 'NIVEL',                  # Coluna E (índice 4)
                 5: 'CURSO',                  # Coluna F (índice 5)
                 9: 'DT_PAGTO',               # Coluna J (índice 9)
+                12: 'Qtd_Matriculas',        # Coluna M (índice 12)
                 13: 'TIPO_PARCERIA'          # Coluna N (índice 13)
             }
 
@@ -228,9 +228,29 @@ class DataProcessor:
                 else:
                     df_clean[new_name] = ''
 
-            # Manter apenas colunas necessárias
+            # Manter apenas colunas necessárias.
+            # Certificar-se de que 'Qtd_Matriculas' está presente no df_clean antes de usá-la
             required_cols = list(columns_map.values())
-            df_clean = df_clean[required_cols]
+            # Certificar-se de que todas as colunas mapeadas existem no DF após a renomeação
+            df_clean = df_clean[[
+                col for col in required_cols if col in df_clean.columns]]
+
+            # CONVERTER Qtd_Matriculas para numérico ANTES de filtrar e processar datas
+            # Garante que a coluna Qtd_Matriculas exista e seja tratada
+            if 'Qtd_Matriculas' in df_clean.columns:
+                df_clean['Qtd_Matriculas'] = pd.to_numeric(
+                    df_clean['Qtd_Matriculas'], errors='coerce'
+                    # Preenche NaN com 1 (para contar como 1 venda se não especificado)
+                ).fillna(1).astype(int)
+            else:
+                # Se a coluna não existir mesmo após o mapeamento, criar e setar para 1
+                df_clean['Qtd_Matriculas'] = 1
+
+            # Processar data de pagamento ANTES dos filtros que dependam dela
+            df_clean = DataProcessor._process_payment_date(df_clean)
+
+            # Limpeza de dados de texto ANTES dos filtros para garantir consistência
+            df_clean = DataProcessor._clean_text_columns(df_clean)
 
             # Filtrar modalidades válidas
             modalidades_validas = [
@@ -239,7 +259,6 @@ class DataProcessor:
                 'Ensino Médio (EJA)', 'Extensão', 'Graduação',
                 'Pós-Graduação', 'Segunda Graduação', 'Tecnólogo'
             ]
-
             df_clean = df_clean[df_clean['NIVEL'].isin(modalidades_validas)]
 
             # Filtrar tipos de parceria válidos
@@ -248,23 +267,28 @@ class DataProcessor:
             df_clean = df_clean[df_clean['TIPO_PARCERIA'].isin(
                 parcerias_validas)]
 
-            # Processar data de pagamento
-            df_clean = DataProcessor._process_payment_date(df_clean)
-
-            # Limpeza de dados
-            df_clean = DataProcessor._clean_text_columns(df_clean)
-
-            # Remover linhas com dados essenciais vazios
+            # Remover linhas com dados essenciais vazios ANTES da explosão, para evitar duplicar linhas inválidas
             df_clean = df_clean.dropna(
                 subset=['CPF', 'DT_PAGTO', 'NIVEL', 'TIPO_PARCERIA'])
 
-            return df_clean
+            # NOVO: Duplicar linhas com base em 'Qtd_Matriculas'
+            # Isso "explode" o DataFrame, transformando 1 linha com Qtd_Matriculas=2 em 2 linhas idênticas
+            df_exploded = df_clean.loc[df_clean.index.repeat(
+                df_clean['Qtd_Matriculas'])].copy()
+
+            # Opcional: Remover a coluna 'Qtd_Matriculas' após a explosão, pois cada linha agora representa uma unidade de venda
+            if 'Qtd_Matriculas' in df_exploded.columns:
+                df_exploded = df_exploded.drop(columns=['Qtd_Matriculas'])
+
+            # Resetar o índice para que ele fique contínuo após a duplicação
+            df_exploded = df_exploded.reset_index(drop=True)
+
+            return df_exploded
 
         except Exception as e:
             st.error(f"Erro ao processar dados de vendas: {str(e)}")
             return pd.DataFrame()
 
-    # Dentro da classe DataProcessor, no método _process_payment_date
     @staticmethod
     def _process_payment_date(df: pd.DataFrame) -> pd.DataFrame:
         """Processa e converte datas de pagamento"""
