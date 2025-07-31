@@ -210,7 +210,8 @@ class VendasAnalysis(BasePage):
                 ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-                vendas_por_mes_reindexado = vendas_por_mes_series.reindex(ordem_meses, fill_value=0)
+                vendas_por_mes_reindexado = vendas_por_mes_series.reindex(
+                    ordem_meses, fill_value=0)
 
                 vendas_por_mes_ord = vendas_por_mes_reindexado.reset_index()
                 vendas_por_mes_ord.columns = ['MES_NOME', 'Vendas']
@@ -325,6 +326,62 @@ class VendasAnalysis(BasePage):
         else:
             st.info("Dados de modalidades não disponíveis para ranking.")
 
+        # --- NOVOS GRÁFICOS SOLICITADOS ---
+        st.markdown("---")  # Separador visual
+
+        # Inicializa as variáveis com um valor padrão para garantir que sempre existam.
+        # Caso as condições IFs abaixo sejam FALSAS, estas variáveis ainda estarão definidas.
+        # Valor padrão (ex: o do index=1 do selectbox)
+        top_n_modalidades_parceiro = 5
+        # Valor padrão (ex: o do index=1 do selectbox)
+        top_n_modalidades_mensal = 3
+
+        # 1. Top Modalidades Mais Vendidas por Tipo de Parceiro
+        st.subheader("🏆 Top Modalidades por Tipo de Parceiro")
+        if 'NIVEL' in vendas_df.columns and 'TIPO_PARCERIA' in vendas_df.columns and not vendas_df.empty:
+            top_n_modalidades_parceiro = st.selectbox(
+                "Número de modalidades por tipo de parceiro:",
+                [3, 5, 10],
+                index=1,
+                key="top_modalidades_parceiro_select"
+            )
+            try:
+                fig_top_modal_parceiro = self.viz.create_top_modalities_by_partnership_chart(
+                    vendas_df, top_n_modalidades_parceiro
+                )
+                st.plotly_chart(fig_top_modal_parceiro,
+                                use_container_width=True)
+            except Exception as e:
+                st.error(
+                    f"Erro ao gerar gráfico de top modalidades por parceiro: {str(e)}")
+        else:
+            st.info(
+                "Dados de modalidades ou tipo de parceiro não disponíveis para esta análise.")
+
+        st.markdown("---")  # Separador visual
+
+        # 2. Top Modalidades Vendidas Mês a Mês por Cada Tipo de Parceiro
+        st.subheader("📈 Evolução Mensal das Modalidades por Parceiro")
+        if 'MES_ANO' in vendas_df.columns and 'NIVEL' in vendas_df.columns and 'TIPO_PARCERIA' in vendas_df.columns and not vendas_df.empty:
+            top_n_modalidades_mensal = st.selectbox(
+                "Número de modalidades para evolução mensal:",
+                [2, 3, 5],
+                index=1,
+                key="top_modalidades_mensal_select"
+            )
+            try:
+                fig_modalidades_mensal_parceiro = self.viz.create_modalities_monthly_by_partnership_chart(
+                    vendas_df, top_n_modalidades_mensal
+                )
+                st.plotly_chart(fig_modalidades_mensal_parceiro,
+                                use_container_width=True)
+            except Exception as e:
+                st.error(
+                    f"Erro ao gerar gráfico de evolução mensal de modalidades por parceiro: {str(e)}")
+        else:
+            st.info(
+                "Dados temporais, de modalidades ou tipo de parceiro não disponíveis para esta análise.")
+
     def _render_comparative_analysis(self, vendas_df):
         """Renderiza análise comparativa (gráficos de barras)"""
         st.subheader(
@@ -406,9 +463,9 @@ class VendasAnalysis(BasePage):
                 vendas_p2 = len(vendas_df[vendas_df['MES_NOME'] == periodo2])
             elif tipo_comparacao == "parcerias":
                 vendas_p1 = len(
-                    vendas_df[vendas_df['TIPO_PARCERIA'] == period1])
+                    vendas_df[vendas_df['TIPO_PARCERIA'] == periodo1])
                 vendas_p2 = len(
-                    vendas_df[vendas_df['TIPO_PARCERIA'] == period2])
+                    vendas_df[vendas_df['TIPO_PARCERIA'] == periodo2])
             else:  # modalidades
                 vendas_p1 = len(vendas_df[vendas_df['NIVEL'] == periodo1])
                 vendas_p2 = len(vendas_df[vendas_df['NIVEL'] == periodo2])
@@ -496,6 +553,7 @@ class VendasAnalysis(BasePage):
 
         item1 = None
         item2 = None
+        show_cumulative_checkbox = False  # Initialize the variable
 
         # A lógica de seleção de item1 e item2 agora usa 'vendas_df_filtered_by_partnership'
         # e é adaptada aos tipos de comparação restantes.
@@ -552,12 +610,18 @@ class VendasAnalysis(BasePage):
             item1 = f"{selected_month} - {year1}"
             item2 = f"{selected_month} - {year2}"
 
+            # NOVO: Checkbox for cumulative
+            st.markdown("---")
+            show_cumulative_checkbox = st.checkbox(
+                "Ver evolução de vendas cumulativo", key="cumulative_sales_checkbox")
+
         # Renderizar gráfico se os itens forem selecionados
         if item1 and item2:
             try:
                 # Passa o DataFrame JÁ FILTRADO pelo tipo de parceria
+                # Pass the show_cumulative_checkbox state
                 fig = self.viz.create_detailed_sales_comparison_timeline(
-                    vendas_df_filtered_by_partnership, comparison_key, item1, item2)
+                    vendas_df_filtered_by_partnership, comparison_key, item1, item2, show_cumulative=show_cumulative_checkbox)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(
