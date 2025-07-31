@@ -1,23 +1,41 @@
+import os
+from dotenv import load_dotenv
+
+# Carrega as variáveis de ambiente do arquivo .env
+# Certifique-se de que load_dotenv() seja chamado antes de tentar acessar as variáveis
+load_dotenv()
+
+# Função auxiliar para pegar a variável de ambiente ou retornar um erro claro
+
+
+def get_env_var(name: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        raise ValueError(
+            f"Variável de ambiente '{name}' não configurada. Por favor, verifique seu arquivo .env ou as configurações de segredos do deploy.")
+    return value
+
+
 # Configurações das APIs e planilhas
 GOOGLE_SHEETS_CONFIG = {
     'planilha_polos': {
-        'API_KEY': 'AIzaSyDqOzQWHPmUxy_6XSJM0TpFrcFyeAShVq8',
-        'SHEET_ID': '1IxAnU18qxiEf-TjvqBEEj9L1W3CsY3-DHDxREV4APmk',
+        'API_KEY': get_env_var('GOOGLE_SHEETS_POLOS_API_KEY'),
+        'SHEET_ID': get_env_var('GOOGLE_SHEETS_POLOS_SHEET_ID'),
         'abas': {
             'polos_ativos': 'POLOS ATIVOS',
             'municipios': 'Sheet3'
         }
     },
     'planilha_vendas': {
-        'API_KEY': 'AIzaSyDIMPCAepQWKWctcPIpm58JEZdoqXY5-Hc',
-        'SHEET_ID': '1FleflKWuQe_QVJGO2Yfz3E8YbYcpg4UmLUjMEdXlzzw',
+        'API_KEY': get_env_var('GOOGLE_SHEETS_VENDAS_API_KEY'),
+        'SHEET_ID': get_env_var('GOOGLE_SHEETS_VENDAS_SHEET_ID'),
         'abas': {
             'base_vendas': 'Base de Vendas'
         }
     },
     'planilha_alunos': {
-        'API_KEY': 'AIzaSyCRSFeco4JJ8uyptRcdIw---kOmoZNwfpM',
-        'SHEET_ID': '1brLsKvVoNoQ9OVWhb-0yBXOgZyxPOPc6rgeNmqzkHUg',
+        'API_KEY': get_env_var('GOOGLE_SHEETS_ALUNOS_API_KEY'),
+        'SHEET_ID': get_env_var('GOOGLE_SHEETS_ALUNOS_SHEET_ID'),
         'abas': {
             'alunos_dados': 'lista_alunos'
         }

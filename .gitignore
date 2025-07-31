@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python/
+Python*/
+env/
+venv/
+.venv/  # Pasta comum para virtual environments
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+nosetests.xml
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.manifest
+*.spec
+.pytest_cache/
+.mypy_cache/
+.vscode/ # Pasta de configuração do VS Code (opcional, mas recomendada)
+.idea/   # Pasta de configuração do PyCharm/IntelliJ (opcional, mas recomendada)
+
+# Streamlit specific
+.streamlit/ # Pasta de cache e configurações locais do Streamlit
+
+# Environment variables
+.env  # ISSO É FUNDAMENTAL: Ignora o arquivo .env
