@@ -478,55 +478,71 @@ class DataProcessor:
     @staticmethod
     def calculate_coverage_metrics(
             polos_df: pd.DataFrame, municipios_df: pd.DataFrame) -> Dict:
-        """Calcula métricas de cobertura dos polos"""
+        """
+        Calcula métricas de cobertura dos polos, incluindo municípios cobertos com alunos.
+        """
         metrics = {
             'total_municipios': 0,
             'municipios_cobertos': 0,
             'percentual_cobertura': 0,
             'distancia_media': 0,
             'alunos_cobertos': 0,
-            'total_alunos': 0
+            'total_alunos': 0,
+            'municipios_cobertos_com_alunos': 0,
+            'total_municipios_com_alunos': 0,
+            'percentual_cobertura_com_alunos': 0
         }
 
         try:
             if not polos_df.empty and not municipios_df.empty:
-                # Raio de cobertura de 100km
                 coverage_radius = 100
 
-                # Verificar se a coluna DISTANCIA_KM existe e tem dados válidos
-                if 'DISTANCIA_KM' in municipios_df.columns:
-                    # Filtrar municípios com dados válidos
-                    municipios_validos = municipios_df[
-                        (municipios_df['DISTANCIA_KM'].notna()) &
-                        (municipios_df['DISTANCIA_KM'] > 0)
-                    ]
+                if 'DISTANCIA_KM' in municipios_df.columns and 'TOTAL_ALUNOS' in municipios_df.columns:
+                    # Todos os municípios com dados de distância calculados
+                    all_calculated_municipios = municipios_df[
+                        (municipios_df['DISTANCIA_KM'].notna())
+                    ].copy()
 
-                    if not municipios_validos.empty:
-                        # Municípios dentro da cobertura
-                        municipios_cobertura = municipios_validos[
-                            municipios_validos[
-                                'DISTANCIA_KM'] <= coverage_radius
-                        ]
+                    if not all_calculated_municipios.empty:
+                        metrics['total_municipios'] = len(
+                            all_calculated_municipios)
+                        metrics['total_alunos'] = all_calculated_municipios['TOTAL_ALUNOS'].sum(
+                        )
 
-                        metrics['total_municipios'] = len(municipios_validos)
+                        # Total de municípios que possuem alunos no DataFrame
+                        total_municipios_with_students = all_calculated_municipios[
+                            all_calculated_municipios['TOTAL_ALUNOS'] > 0
+                        ].copy()
+                        metrics['total_municipios_com_alunos'] = len(
+                            total_municipios_with_students)
+
+                        # Municípios dentro da cobertura (distância <= 100km)
+                        municipios_cobertura = all_calculated_municipios[
+                            all_calculated_municipios['DISTANCIA_KM'] <= coverage_radius
+                        ].copy()
+
                         metrics['municipios_cobertos'] = len(
                             municipios_cobertura)
                         metrics['percentual_cobertura'] = (
-                            len(municipios_cobertura) / len(
-                                municipios_validos)) * 100
-                        metrics['distancia_media'] = municipios_validos[
-                            'DISTANCIA_KM'].mean(
+                            metrics['municipios_cobertos'] / metrics['total_municipios']) * 100 if metrics['total_municipios'] > 0 else 0
+                        metrics['distancia_media'] = all_calculated_municipios['DISTANCIA_KM'].mean(
+                        )
+                        metrics['alunos_cobertos'] = municipios_cobertura['TOTAL_ALUNOS'].sum(
                         )
 
-                        if 'TOTAL_ALUNOS' in municipios_df.columns:
-                            metrics['alunos_cobertos'] = municipios_cobertura[
-                                'TOTAL_ALUNOS'].sum(
-                            )
-                            metrics['total_alunos'] = municipios_validos[
-                                'TOTAL_ALUNOS'].sum(
-                            )
+                        # Municípios cobertos E com alunos (TOTAL_ALUNOS > 0)
+                        municipios_cobertos_com_alunos = municipios_cobertura[
+                            municipios_cobertura['TOTAL_ALUNOS'] > 0
+                        ].copy()
+
+                        metrics['municipios_cobertos_com_alunos'] = len(
+                            municipios_cobertos_com_alunos)
+                        # Denominador agora é total_municipios_com_alunos
+                        metrics['percentual_cobertura_com_alunos'] = (
+                            metrics['municipios_cobertos_com_alunos'] / metrics['total_municipios_com_alunos']) * 100 if metrics['total_municipios_com_alunos'] > 0 else 0
 
         except Exception as e:
+            st.error(f"Erro ao calcular métricas de cobertura: {e}")
             pass
 
         return metrics

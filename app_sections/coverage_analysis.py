@@ -31,6 +31,7 @@ class CoverageAnalysis(BasePage):
 
     def _display_coverage_metrics(self, metrics, polos_df):
         """Exibe métricas de cobertura"""
+        # Quatro colunas para as métricas originais
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -52,6 +53,19 @@ class CoverageAnalysis(BasePage):
                     polos_df) > 0 else 0
             st.metric("Alunos por Polo", f"{eficiencia:.0f}")
 
+        # Novas métricas em uma nova linha para melhor visualização
+        st.markdown("---")  # Adiciona um separador visual
+        col5, col6 = st.columns(2)
+
+        with col5:
+            st.metric("Municípios Cobertos c/ Alunos",
+                      f"{metrics.get('municipios_cobertos_com_alunos', 0)}/{
+                          metrics.get('total_municipios_com_alunos', 0)}")
+
+        with col6:
+            st.metric("% Cobertura c/ Alunos",
+                      f"{metrics.get('percentual_cobertura_com_alunos', 0):.1f}%")
+
     def _render_coverage_map(self, polos_df, municipios_df):
         """Renderiza mapa de cobertura"""
         st.subheader("🗺️ Mapa de Cobertura (Raio 100km)")
@@ -61,7 +75,7 @@ class CoverageAnalysis(BasePage):
 
     def _render_regional_analysis(self, municipios_df):
         """Renderiza análise por região"""
-        st.subheader("📊 Eficiência por Região")
+        st.subheader("�� Eficiência por Região")
 
         if 'REGIAO' in municipios_df.columns:
             eficiencia_regiao = municipios_df.groupby('REGIAO').agg({
