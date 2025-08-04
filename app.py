@@ -11,7 +11,7 @@ from app_sections.coverage_analysis import CoverageAnalysis
 from app_sections.students_analysis import StudentsAnalysis
 from app_sections.alignment_analysis import AlignmentAnalysis
 from app_sections.vendas_analysis import VendasAnalysis
-from app_sections.opportunity_analysis import OpportunityAnalysis
+# from app_sections.opportunity_analysis import OpportunityAnalysis
 
 # Imports externos
 import streamlit as st
@@ -180,6 +180,7 @@ def main():
 
     # Rodapé
     st.markdown("---")
+
     st.markdown("""
     ### 📊 Informações do Dashboard
     **Dados atualizados automaticamente das planilhas Google Sheets**
