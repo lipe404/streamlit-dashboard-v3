@@ -135,9 +135,6 @@ class RelatoriosOportunidade:
                 "❌ Não foi possível carregar dados de população da planilha local")
             return
 
-        # Exibir informações dos dados carregados
-        # self._display_data_info(dados_populacao, cidades_com_polos)
-
         # Identificar oportunidades
         oportunidades = self._identify_opportunities(
             dados_populacao, cidades_com_polos)
@@ -150,8 +147,9 @@ class RelatoriosOportunidade:
         self._display_opportunity_metrics(
             oportunidades, dados_populacao, cidades_com_polos)
 
-        # Filtros
-        col1, col2, col3 = st.columns(3)
+        # Filtros - Agora em 4 colunas para incluir Estados
+        st.markdown("### 🔧 Filtros de Análise")
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             min_pop = int(oportunidades['populacao'].min())
@@ -176,6 +174,16 @@ class RelatoriosOportunidade:
             )
 
         with col3:
+            # Novo filtro de Estados
+            available_states = sorted(oportunidades['uf'].unique().tolist())
+            selected_states = st.multiselect(
+                "Estados (UF)",
+                options=available_states,
+                default=available_states,
+                help="Selecionar estados específicos para análise"
+            )
+
+        with col4:
             top_n = st.selectbox(
                 "Top N cidades",
                 options=[10, 20, 30, 50, 100],
@@ -183,14 +191,17 @@ class RelatoriosOportunidade:
                 help="Número de cidades a exibir nos rankings"
             )
 
-        # Filtrar dados
+        # Filtrar dados com o novo filtro de estados
         oportunidades_filtradas = self._filter_opportunities(
-            oportunidades, min_population, selected_regions
+            oportunidades, min_population, selected_regions, selected_states
         )
 
         if oportunidades_filtradas.empty:
             st.warning("⚠️ Nenhuma cidade encontrada com os filtros aplicados")
             return
+
+        # Exibir informações dos filtros aplicados
+        self._display_filter_info(oportunidades_filtradas, oportunidades)
 
         # Abas de análise
         tab1, tab2, tab3, tab4 = st.tabs([
@@ -213,24 +224,28 @@ class RelatoriosOportunidade:
             self._render_detailed_analysis(
                 oportunidades_filtradas, dados_populacao, cidades_com_polos)
 
-    def _display_data_info(self, dados_populacao: pd.DataFrame, cidades_com_polos: set):
-        """Exibe informações sobre os dados carregados"""
-        if not dados_populacao.empty:
-            col1, col2, col3, col4 = st.columns(4)
+    def _display_filter_info(self, oportunidades_filtradas: pd.DataFrame, oportunidades_total: pd.DataFrame):
+        """Exibe informações sobre os filtros aplicados"""
+
+        if len(oportunidades_filtradas) < len(oportunidades_total):
+            col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.info(f"📊 **Municípios:** {len(dados_populacao):,}")
+                st.info(
+                    f"🔍 **Filtrado:** {len(oportunidades_filtradas):,} de {len(oportunidades_total):,} cidades")
 
             with col2:
-                total_pop = dados_populacao['populacao'].sum()
-                st.info(f"👥 **População:** {total_pop:,}")
+                pop_filtrada = oportunidades_filtradas['populacao'].sum()
+                pop_total = oportunidades_total['populacao'].sum()
+                pct_pop = (pop_filtrada / pop_total *
+                           100) if pop_total > 0 else 0
+                st.info(f"👥 **População:** {pct_pop:.1f}% do total")
 
             with col3:
-                regioes = dados_populacao['REGIAO'].nunique()
-                st.info(f"🗺️ **Regiões:** {regioes}")
-
-            with col4:
-                st.info(f"🎓 **Cidades c/ Polo:** {len(cidades_com_polos)}")
+                estados_filtrados = oportunidades_filtradas['uf'].nunique()
+                regioes_filtradas = oportunidades_filtradas['REGIAO'].nunique()
+                st.info(
+                    f"🗺️ **Abrangência:** {estados_filtrados} estados, {regioes_filtradas} regiões")
 
     def _get_cities_with_polos(self, polos_df: pd.DataFrame) -> set:
         """Extrai conjunto de cidades que já possuem polos"""
@@ -272,8 +287,9 @@ class RelatoriosOportunidade:
 
         return oportunidades
 
-    def _filter_opportunities(self, oportunidades: pd.DataFrame, min_population: int, selected_regions: List[str]) -> pd.DataFrame:
-        """Aplica filtros às oportunidades"""
+    def _filter_opportunities(self, oportunidades: pd.DataFrame, min_population: int,
+                              selected_regions: List[str], selected_states: List[str]) -> pd.DataFrame:
+        """Aplica filtros às oportunidades - ATUALIZADO para incluir filtro de estados"""
         if oportunidades.empty:
             return oportunidades
 
@@ -284,6 +300,10 @@ class RelatoriosOportunidade:
         # Filtrar por regiões selecionadas
         if selected_regions:
             filtered = filtered[filtered['REGIAO'].isin(selected_regions)]
+
+        # NOVO: Filtrar por estados selecionados
+        if selected_states:
+            filtered = filtered[filtered['uf'].isin(selected_states)]
 
         return filtered
 
