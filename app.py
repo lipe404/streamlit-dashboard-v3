@@ -11,6 +11,7 @@ from app_sections.coverage_analysis import CoverageAnalysis
 from app_sections.students_analysis import StudentsAnalysis
 from app_sections.alignment_analysis import AlignmentAnalysis
 from app_sections.vendas_analysis import VendasAnalysis
+from app_sections.relatorios_oportunidade import RelatoriosOportunidade
 # from app_sections.opportunity_analysis import OpportunityAnalysis
 
 # Imports externos
@@ -157,6 +158,7 @@ def main():
         "👥 Análise de Alunos e Cursos": StudentsAnalysis,
         "🔄 Análise de Alinhamento de Polos": AlignmentAnalysis,
         "💰 Análise de Vendas": VendasAnalysis,
+        "🌟 Relatórios de Oportunidade": RelatoriosOportunidade,
     }
 
     selected_section = st.sidebar.selectbox(
@@ -173,6 +175,9 @@ def main():
     elif selected_section == "🌟 Análise de Oportunidades":
         section_instance = section_class(viz, MAP_CONFIG)
         # OpportunityAnalysis precisa de todos
+        section_instance.render(polos_df, municipios_df, alunos_df)
+    elif selected_section == "🌟 Relatórios de Oportunidade":
+        section_instance = section_class(viz, MAP_CONFIG)
         section_instance.render(polos_df, municipios_df, alunos_df)
     else:  # As outras seções (Geographic, Municipalities, Coverage, Students, Alignment)
         section_instance = section_class(viz, MAP_CONFIG)
