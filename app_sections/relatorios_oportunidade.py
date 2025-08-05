@@ -23,7 +23,7 @@ def load_population_data_from_local_file() -> pd.DataFrame:
             return pd.DataFrame()
 
         # Carregar dados da planilha da aba "Municípios"
-        st.info("📊 Carregando dados de municípios da planilha local...")
+        # st.info("📊 Carregando dados de municípios da planilha local...")
 
         # Ler da aba "Municípios" com as colunas específicas
         df_municipios = pd.read_excel(
@@ -96,7 +96,7 @@ def clean_municipal_data(df: pd.DataFrame) -> pd.DataFrame:
         # Reset index
         df = df.reset_index(drop=True)
 
-        st.success(f"✅ Carregados {len(df):,} municípios da planilha local")
+        # st.success(f"✅ Carregados {len(df):,} municípios da planilha local")
 
         return df
 
@@ -136,7 +136,7 @@ class RelatoriosOportunidade:
             return
 
         # Exibir informações dos dados carregados
-        self._display_data_info(dados_populacao, cidades_com_polos)
+        # self._display_data_info(dados_populacao, cidades_com_polos)
 
         # Identificar oportunidades
         oportunidades = self._identify_opportunities(
