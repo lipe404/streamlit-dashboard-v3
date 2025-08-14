@@ -1296,8 +1296,8 @@ class Visualizations:
             return pd.DataFrame()
 
     # Métodos para análise de vendas
-    def create_sales_partnership_pie(self, vendas_df: pd.DataFrame, selected_partnerships: List[str] = None) -> go.Figure:
-        """Cria gráfico de pizza das vendas por tipo de parceria"""
+    def create_sales_partnership_pie(self, vendas_df: pd.DataFrame, selected_partnerships: List[str] = None, custom_title: str = None) -> go.Figure:
+        """Cria gráfico de pizza das vendas por tipo de parceria com título customizável"""
 
         if vendas_df.empty or 'TIPO_PARCERIA' not in vendas_df.columns:
             return go.Figure()
@@ -1321,26 +1321,55 @@ class Visualizations:
             total_vendas = vendas_por_parceria.sum()
             percentuais = (vendas_por_parceria / total_vendas * 100).round(1)
 
+            # Definir cores específicas para cada tipo de parceria (mantendo suas cores originais)
+            cores_parceria = {
+                'Parceiro Comercial': '#FF6B6B',      # Vermelho claro
+                'Parceiro Polo': '#4ECDC4',           # Verde água
+                'Comercial Interno': '#45B7D1',       # Azul
+                # Cores adicionais caso apareçam novos tipos
+                'Outros': '#96CEB4',                  # Verde claro
+                'Indefinido': '#FFEAA7'               # Amarelo claro
+            }
+
+            # Aplicar cores baseadas nos tipos de parceria encontrados
+            cores_aplicadas = []
+            for parceria in vendas_por_parceria.index:
+                if parceria in cores_parceria:
+                    cores_aplicadas.append(cores_parceria[parceria])
+                else:
+                    # Usar cores padrão se o tipo não estiver mapeado
+                    cores_default = ['#96CEB4', '#FFEAA7',
+                                     '#DDA0DD', '#98FB98', '#F0E68C']
+                    idx = len(cores_aplicadas) % len(cores_default)
+                    cores_aplicadas.append(cores_default[idx])
+
+            # Título dinâmico (usar custom_title se fornecido, senão usar o padrão)
+            titulo = custom_title if custom_title else 'Distribuição de Vendas por Tipo de Parceria'
+
             # Criar gráfico de pizza
             fig = go.Figure(data=[go.Pie(
                 labels=vendas_por_parceria.index,
                 values=vendas_por_parceria.values,
                 textinfo='label+percent+value',
-                texttemplate='%{label}<br>%{percent}<br>(%{value} vendas)',
+                texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value} vendas)',
                 hovertemplate='<b>%{label}</b><br>' +
-                            'Vendas: %{value}<br>' +
+                            'Vendas: %{value:,}<br>' +
                             'Percentual: %{percent}<br>' +
+                            'Total Geral: ' + f'{total_vendas:,} vendas<br>' +
                             '<extra></extra>',
                             marker=dict(
-                                colors=['#FF6B6B', '#4ECDC4',
-                                        '#45B7D1', '#96CEB4', '#FFEAA7'],
+                                colors=cores_aplicadas,
                                 line=dict(color='#FFFFFF', width=2)
-                            )
+                            ),
+                            textfont=dict(size=12),
+                            # Destacar a maior fatia puxando-a ligeiramente
+                            pull=[0.05 if i == 0 else 0 for i in range(
+                                len(vendas_por_parceria))]
                             )])
 
             fig.update_layout(
                 title={
-                    'text': '<b>Distribuição de Vendas por Tipo de Parceria</b>',
+                    'text': f'<b>{titulo}</b>',
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 16}
@@ -1352,8 +1381,24 @@ class Visualizations:
                     yanchor="middle",
                     y=0.5,
                     xanchor="left",
-                    x=1.05
-                )
+                    x=1.05,
+                    font=dict(size=11)
+                ),
+                margin=dict(t=60, b=50, l=20, r=150),
+                # Adicionar anotação com total de vendas
+                annotations=[
+                    dict(
+                        text=f'<b>Total: {total_vendas:,} vendas</b>',
+                        x=0.5, y=-0.15,
+                        xref='paper', yref='paper',
+                        showarrow=False,
+                        font=dict(size=14, color='#2C3E50'),
+                        bgcolor='rgba(255,255,255,0.8)',
+                        bordercolor='#BDC3C7',
+                        borderwidth=1,
+                        borderpad=4
+                    )
+                ]
             )
 
             return fig

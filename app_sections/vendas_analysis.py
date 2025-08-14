@@ -91,7 +91,7 @@ class VendasAnalysis(BasePage):
             st.error(f"Erro ao calcular métricas: {str(e)}")
 
     def _render_partnership_analysis(self, vendas_df):
-        """Renderiza análise de parcerias"""
+        """Renderiza análise de parcerias com filtros avançados"""
         st.subheader("🤝 Análise por Tipo de Parceria")
 
         if 'TIPO_PARCERIA' not in vendas_df.columns or vendas_df.empty:
@@ -99,53 +99,285 @@ class VendasAnalysis(BasePage):
                 "Dados de tipo de parceria não disponíveis ou DataFrame vazio.")
             return
 
+        # Layout principal: filtros à esquerda, gráfico à direita
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            # Filtro de parcerias
             st.subheader("🔍 Filtros")
-            parcerias_disponiveis = sorted(
-                vendas_df['TIPO_PARCERIA'].dropna().unique())
-            parcerias_selecionadas = st.multiselect(
-                "Selecione tipos de parceria:",
-                parcerias_disponiveis,
-                default=parcerias_disponiveis,
-                help="Escolha quais tipos de parceria incluir na análise"
-            )
 
-            if parcerias_selecionadas:
-                # Estatísticas das parcerias selecionadas
-                vendas_filtradas_parceria = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
-                    parcerias_selecionadas)]
+            # 1. Filtro de Período (Mês/Ano)
+            st.markdown("**📅 Filtro por Período**")
 
-                st.subheader("📊 Estatísticas")
-                for parceria in parcerias_selecionadas:
-                    vendas_parceria = len(
-                        vendas_df[vendas_df['TIPO_PARCERIA'] == parceria])
-                    if vendas_parceria > 0:
-                        percentual = (vendas_parceria / len(vendas_df) * 100)
-                        st.metric(
-                            f"{parceria}",
-                            f"{vendas_parceria:,}",
-                            f"{percentual:.1f}% do total"
+            # Verificar se dados temporais estão disponíveis
+            if 'MES_ANO' in vendas_df.columns and 'MES_NOME' in vendas_df.columns:
+                # Opções de filtro temporal
+                tipo_periodo = st.selectbox(
+                    "Tipo de filtro temporal:",
+                    ["Todos os períodos", "Por mês específico",
+                        "Por ano específico", "Por trimestre"],
+                    key="partnership_periodo_tipo"
+                )
+
+                vendas_filtradas_periodo = vendas_df.copy()
+                periodo_selecionado_info = "Todos os períodos"
+
+                if tipo_periodo == "Por mês específico":
+                    meses_disponiveis = sorted(
+                        vendas_df['MES_ANO'].dropna().unique())
+                    if meses_disponiveis:
+                        mes_selecionado = st.selectbox(
+                            "Selecione o mês:",
+                            meses_disponiveis,
+                            key="partnership_mes_select"
                         )
-                    else:
-                        st.metric(f"{parceria}", "0", "0.0%")
+                        vendas_filtradas_periodo = vendas_df[vendas_df['MES_ANO']
+                                                             == mes_selecionado]
+                        periodo_selecionado_info = f"Mês: {mes_selecionado}"
+
+                elif tipo_periodo == "Por ano específico":
+                    if 'ANO' in vendas_df.columns:
+                        anos_disponiveis = sorted(
+                            vendas_df['ANO'].dropna().unique())
+                        if anos_disponiveis:
+                            ano_selecionado = st.selectbox(
+                                "Selecione o ano:",
+                                anos_disponiveis,
+                                key="partnership_ano_select"
+                            )
+                            vendas_filtradas_periodo = vendas_df[vendas_df['ANO']
+                                                                 == ano_selecionado]
+                            periodo_selecionado_info = f"Ano: {ano_selecionado}"
+
+                elif tipo_periodo == "Por trimestre":
+                    if 'TRIMESTRE' in vendas_df.columns and 'ANO' in vendas_df.columns:
+                        # Criar lista de trimestres disponíveis
+                        vendas_df_temp = vendas_df.dropna(
+                            subset=['TRIMESTRE', 'ANO'])
+                        if not vendas_df_temp.empty:
+                            vendas_df_temp['TRIMESTRE_ANO'] = vendas_df_temp['ANO'].astype(
+                                str) + " - T" + vendas_df_temp['TRIMESTRE'].astype(str)
+                            trimestres_disponiveis = sorted(
+                                vendas_df_temp['TRIMESTRE_ANO'].unique())
+
+                            if trimestres_disponiveis:
+                                trimestre_selecionado = st.selectbox(
+                                    "Selecione o trimestre:",
+                                    trimestres_disponiveis,
+                                    key="partnership_trimestre_select"
+                                )
+                                # Extrair ano e trimestre
+                                ano_trim, trim_num = trimestre_selecionado.split(
+                                    " - T")
+                                vendas_filtradas_periodo = vendas_df[
+                                    (vendas_df['ANO'] == int(ano_trim)) &
+                                    (vendas_df['TRIMESTRE'] == int(trim_num))
+                                ]
+                                periodo_selecionado_info = f"Trimestre: {trimestre_selecionado}"
             else:
-                st.info("Nenhuma parceria selecionada.")
+                vendas_filtradas_periodo = vendas_df.copy()
+                periodo_selecionado_info = "Dados temporais não disponíveis"
+                st.info("Dados temporais não disponíveis para filtro por período.")
+
+            st.markdown("---")  # Separador visual
+
+            # 2. Filtro de Modalidades
+            st.markdown("**🎓 Filtro por Modalidades**")
+
+            if 'NIVEL' in vendas_filtradas_periodo.columns:
+                modalidades_disponiveis = sorted(
+                    vendas_filtradas_periodo['NIVEL'].dropna().unique())
+
+                if modalidades_disponiveis:
+                    # Opção para selecionar todas ou específicas
+                    selecao_modalidade = st.radio(
+                        "Modalidades:",
+                        ["Todas as modalidades", "Modalidades específicas"],
+                        key="partnership_modalidade_tipo"
+                    )
+
+                    if selecao_modalidade == "Modalidades específicas":
+                        modalidades_selecionadas = st.multiselect(
+                            "Selecione modalidades:",
+                            modalidades_disponiveis,
+                            default=modalidades_disponiveis[:3] if len(
+                                modalidades_disponiveis) > 3 else modalidades_disponiveis,
+                            key="partnership_modalidades_select"
+                        )
+
+                        if modalidades_selecionadas:
+                            vendas_filtradas_final = vendas_filtradas_periodo[
+                                vendas_filtradas_periodo['NIVEL'].isin(
+                                    modalidades_selecionadas)
+                            ]
+                            modalidades_info = f"Modalidades: {', '.join(modalidades_selecionadas[:2])}{'...' if len(modalidades_selecionadas) > 2 else ''}"
+                        else:
+                            vendas_filtradas_final = pd.DataFrame()
+                            modalidades_info = "Nenhuma modalidade selecionada"
+                    else:
+                        vendas_filtradas_final = vendas_filtradas_periodo.copy()
+                        modalidades_info = "Todas as modalidades"
+                else:
+                    vendas_filtradas_final = vendas_filtradas_periodo.copy()
+                    modalidades_info = "Nenhuma modalidade disponível"
+            else:
+                vendas_filtradas_final = vendas_filtradas_periodo.copy()
+                modalidades_info = "Dados de modalidades não disponíveis"
+                st.info("Dados de modalidades não disponíveis.")
+
+            st.markdown("---")  # Separador visual
+
+            # 3. Filtro de Parcerias (mantido do código original)
+            st.markdown("**🤝 Filtro por Parcerias**")
+
+            if not vendas_filtradas_final.empty and 'TIPO_PARCERIA' in vendas_filtradas_final.columns:
+                parcerias_disponiveis = sorted(
+                    vendas_filtradas_final['TIPO_PARCERIA'].dropna().unique())
+                parcerias_selecionadas = st.multiselect(
+                    "Selecione tipos de parceria:",
+                    parcerias_disponiveis,
+                    default=parcerias_disponiveis,
+                    help="Escolha quais tipos de parceria incluir na análise",
+                    key="partnership_parcerias_select"
+                )
+
+                if parcerias_selecionadas:
+                    vendas_filtradas_final = vendas_filtradas_final[
+                        vendas_filtradas_final['TIPO_PARCERIA'].isin(
+                            parcerias_selecionadas)
+                    ]
+                else:
+                    vendas_filtradas_final = pd.DataFrame()
+            else:
+                parcerias_selecionadas = []
+
+            # 4. Resumo dos filtros aplicados
+            st.markdown("---")
+            st.markdown("**📋 Filtros Aplicados:**")
+            st.markdown(f"• **Período:** {periodo_selecionado_info}")
+            st.markdown(f"• **Modalidades:** {modalidades_info}")
+            if parcerias_selecionadas:
+                parcerias_info = f"{', '.join(parcerias_selecionadas[:2])}{'...' if len(parcerias_selecionadas) > 2 else ''}"
+                st.markdown(f"• **Parcerias:** {parcerias_info}")
+
+            # 5. Estatísticas dos dados filtrados
+            if not vendas_filtradas_final.empty:
+                st.markdown("---")
+                st.markdown("**📊 Estatísticas Filtradas:**")
+
+                total_vendas_filtradas = len(vendas_filtradas_final)
+                total_vendas_original = len(vendas_df)
+                percentual_filtrado = (
+                    total_vendas_filtradas / total_vendas_original * 100) if total_vendas_original > 0 else 0
+
+                st.metric("Total de Vendas Filtradas",
+                          f"{total_vendas_filtradas:,}")
+                st.metric("% do Total Geral", f"{percentual_filtrado:.1f}%")
+
+                # Estatísticas por parceria
+                if 'TIPO_PARCERIA' in vendas_filtradas_final.columns:
+                    st.markdown("**Por Parceria:**")
+                    for parceria in vendas_filtradas_final['TIPO_PARCERIA'].unique():
+                        vendas_parceria = len(
+                            vendas_filtradas_final[vendas_filtradas_final['TIPO_PARCERIA'] == parceria])
+                        percentual_parceria = (
+                            vendas_parceria / total_vendas_filtradas * 100) if total_vendas_filtradas > 0 else 0
+                        st.markdown(
+                            f"• **{parceria}:** {vendas_parceria:,} ({percentual_parceria:.1f}%)")
+            else:
+                st.warning(
+                    "⚠️ Nenhum dado encontrado com os filtros aplicados.")
 
         with col2:
-            # Gráfico de pizza
-            if parcerias_selecionadas:
+            # Gráfico de pizza com dados filtrados
+            if not vendas_filtradas_final.empty and parcerias_selecionadas:
                 try:
+                    # Título dinâmico baseado nos filtros
+                    titulo_grafico = "Distribuição de Vendas por Tipo de Parceria"
+                    if periodo_selecionado_info != "Todos os períodos":
+                        titulo_grafico += f" - {periodo_selecionado_info}"
+
+                    # Temporariamente sem custom_title até o cache ser limpo
                     fig_parceria = self.viz.create_sales_partnership_pie(
-                        vendas_df, parcerias_selecionadas
+                        vendas_filtradas_final,
+                        parcerias_selecionadas
                     )
+
+                    # Atualizar o título manualmente após criar o gráfico
+                    if fig_parceria and hasattr(fig_parceria, 'update_layout'):
+                        fig_parceria.update_layout(
+                            title={
+                                'text': f'<b>{titulo_grafico}</b>',
+                                'x': 0.5,
+                                'xanchor': 'center',
+                                'font': {'size': 16}
+                            }
+                        )
                     st.plotly_chart(fig_parceria, use_container_width=True)
+
+                    # Insights adicionais
+                    if len(vendas_filtradas_final) > 0:
+                        st.markdown("### 💡 Insights dos Dados Filtrados")
+
+                        # Parceria dominante
+                        parceria_dominante = vendas_filtradas_final['TIPO_PARCERIA'].value_counts(
+                        )
+                        if not parceria_dominante.empty:
+                            parceria_top = parceria_dominante.index[0]
+                            vendas_top = parceria_dominante.iloc[0]
+                            percentual_top = (
+                                vendas_top / len(vendas_filtradas_final) * 100)
+
+                            st.success(
+                                f"🏆 **Parceria dominante:** {parceria_top} ({vendas_top:,} vendas - {percentual_top:.1f}%)")
+
+                        # Comparação com período anterior (se aplicável)
+                        if 'MES_ANO' in vendas_df.columns and tipo_periodo == "Por mês específico":
+                            try:
+                                # Lógica para comparar com mês anterior
+                                meses_ordenados = sorted(
+                                    vendas_df['MES_ANO'].dropna().unique())
+                                if mes_selecionado in meses_ordenados:
+                                    idx_atual = meses_ordenados.index(
+                                        mes_selecionado)
+                                    if idx_atual > 0:
+                                        mes_anterior = meses_ordenados[idx_atual - 1]
+                                        vendas_mes_anterior = vendas_df[vendas_df['MES_ANO']
+                                                                        == mes_anterior]
+
+                                        if not vendas_mes_anterior.empty:
+                                            total_anterior = len(
+                                                vendas_mes_anterior)
+                                            total_atual = len(
+                                                vendas_filtradas_final)
+                                            variacao = (
+                                                (total_atual - total_anterior) / total_anterior * 100) if total_anterior > 0 else 0
+
+                                            if variacao > 0:
+                                                st.info(
+                                                    f"📈 **Crescimento:** +{variacao:.1f}% em relação a {mes_anterior}")
+                                            elif variacao < 0:
+                                                st.warning(
+                                                    f"📉 **Redução:** {variacao:.1f}% em relação a {mes_anterior}")
+                                            else:
+                                                st.info(
+                                                    f"➡️ **Estável:** Mesmo volume de {mes_anterior}")
+                            except:
+                                pass  # Ignorar erros na comparação
+
                 except Exception as e:
                     st.error(f"Erro ao gerar gráfico de parcerias: {str(e)}")
             else:
-                st.info("Selecione uma ou mais parcerias para visualizar o gráfico.")
+                if vendas_filtradas_final.empty:
+                    st.info(
+                        "📊 Nenhum dado disponível para gerar o gráfico com os filtros aplicados.")
+                    st.markdown("**Sugestões:**")
+                    st.markdown("• Ajuste os filtros de período")
+                    st.markdown("• Selecione diferentes modalidades")
+                    st.markdown(
+                        "• Verifique se há dados para o período selecionado")
+                else:
+                    st.info(
+                        "📊 Selecione pelo menos um tipo de parceria para visualizar o gráfico.")
 
     def _render_temporal_analysis(self, vendas_df):
         """Renderiza análise temporal"""
