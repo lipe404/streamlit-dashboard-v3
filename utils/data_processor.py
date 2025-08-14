@@ -285,6 +285,9 @@ class DataProcessor:
             # Resetar o índice para que ele fique contínuo após a duplicação
             df_exploded = df_exploded.reset_index(drop=True)
 
+            # Adicionar coluna de região baseada no UF
+            df_exploded = DataProcessor._add_region_column(df_exploded)
+
             return df_exploded
 
         except Exception as e:
