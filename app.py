@@ -171,6 +171,10 @@ def main():
         section_instance = section_class(viz, MAP_CONFIG)
         # VendasAnalysis só precisa de vendas_df
         section_instance.render(vendas_df)
+    elif selected_section == "🔄 Análise de Alinhamento de Polos":
+        section_instance = section_class(viz, MAP_CONFIG)
+        # AlignmentAnalysis agora recebe vendas_df em vez de alunos_df
+        section_instance.render(polos_df, municipios_df, vendas_df)
     elif selected_section == "🌟 Análise de Oportunidades":
         section_instance = section_class(viz, MAP_CONFIG)
         # OpportunityAnalysis precisa de todos
@@ -178,7 +182,7 @@ def main():
     elif selected_section == "🌟 Relatórios de Oportunidade":
         section_instance = section_class(viz, MAP_CONFIG)
         section_instance.render(polos_df, municipios_df, alunos_df)
-    else:  # As outras seções (Geographic, Municipalities, Coverage, Students, Alignment)
+    else:
         section_instance = section_class(viz, MAP_CONFIG)
         section_instance.render(polos_df, municipios_df, alunos_df)
 
