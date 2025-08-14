@@ -52,13 +52,11 @@ class Visualizations:
 
         return m
 
-    # Adicione este método à classe Visualizations
     def create_municipal_coverage_map_with_boundaries(
             self, polos_df: pd.DataFrame, municipios_df: pd.DataFrame,
             map_config: Dict) -> folium.Map:
         """Cria mapa de cobertura municipal com delimitações geográficas reais"""
 
-        # Criar mapa base
         m = folium.Map(
             location=[map_config['center_lat'], map_config['center_lon']],
             zoom_start=map_config['zoom'],
@@ -66,14 +64,6 @@ class Visualizations:
         )
 
         try:
-            # REMOVIDO: Uso de GeoDataLoader direto, pois não está definido no código fornecido.
-            # Se você tem um geo_data_loader.py, mantenha essa parte e o import.
-            # municipal_geojson = GeoDataLoader.create_municipal_geojson_from_data(
-            #     municipios_df)
-            # if municipal_geojson and municipal_geojson['features']:
-            #     self._add_municipal_boundaries_to_map(
-            #         m, municipal_geojson, polos_df)
-            # else:
             st.warning("Usando representação simplificada dos municípios.")
             self._add_municipal_coverage_layers(m, polos_df, municipios_df)
 
@@ -159,7 +149,6 @@ class Visualizations:
             )
         ).add_to(m)
 
-    # Método alternativo usando dados reais do IBGE (mais avançado)
     def create_municipal_coverage_map_ibge(
             self, polos_df: pd.DataFrame, municipios_df: pd.DataFrame,
             map_config: Dict) -> folium.Map:
@@ -1295,7 +1284,6 @@ class Visualizations:
         except Exception as e:
             return pd.DataFrame()
 
-    # Métodos para análise de vendas
     def create_sales_partnership_pie(self, vendas_df: pd.DataFrame, selected_partnerships: List[str] = None, custom_title: str = None) -> go.Figure:
         """Cria gráfico de pizza das vendas por tipo de parceria com título customizável"""
 
@@ -1594,7 +1582,6 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # Top Modalidades por Tipo de Parceiro
     def create_top_modalities_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 5) -> go.Figure:
         """
         Cria um gráfico de barras facetado mostrando as top modalidades mais vendidas
@@ -1660,414 +1647,6 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # Modalidades Vendidas Mês a Mês por Tipo de Parceiro
-    def create_modalities_monthly_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 3) -> go.Figure:
-        """
-        Cria um gráfico de linhas facetado mostrando a evolução mensal das vendas
-        das top N modalidades para cada tipo de parceiro.
-        """
-        if vendas_df.empty or 'MES_ANO' not in vendas_df.columns or 'NIVEL' not in vendas_df.columns or 'TIPO_PARCERIA' not in vendas_df.columns:
-            return go.Figure().add_annotation(
-                text="Dados temporais, de modalidades ou tipo de parceria não disponíveis para este gráfico.",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=16)
-            )
-        try:
-            # 1. Calcular vendas por MES_ANO, TIPO_PARCERIA e NIVEL
-            sales_data = vendas_df.groupby(
-                ['MES_ANO', 'TIPO_PARCERIA', 'NIVEL']).size().reset_index(name='Vendas')
-
-            # 2. Ordenar MES_ANO para que o gráfico de linha seja contínuo
-            sales_data['MES_ANO_ORD'] = pd.to_datetime(sales_data['MES_ANO'])
-            sales_data = sales_data.sort_values(
-                ['TIPO_PARCERIA', 'MES_ANO_ORD'])
-
-            # 3. Identificar as top N modalidades para cada TIPO_PARCERIA no período total para filtragem consistente
-            top_modalities_overall = sales_data.groupby(['TIPO_PARCERIA', 'NIVEL'])[
-                'Vendas'].sum().reset_index()
-            top_modalities_filtered = []
-            for parceria_type in top_modalities_overall['TIPO_PARCERIA'].unique():
-                subset = top_modalities_overall[top_modalities_overall['TIPO_PARCERIA']
-                                                == parceria_type]
-                top_n = subset.nlargest(top_n_modalities, 'Vendas')[
-                    'NIVEL'].tolist()
-                top_modalities_filtered.extend(
-                    [(parceria_type, mod) for mod in top_n])
-
-            # Filtrar o DataFrame principal para incluir apenas as top modalidades identificadas
-            # Cria uma tupla (TIPO_PARCERIA, NIVEL) para cada linha e verifica se está nas top_modalities_filtered
-            sales_data['temp_key'] = list(
-                zip(sales_data['TIPO_PARCERIA'], sales_data['NIVEL']))
-            df_filtered_top_modalities = sales_data[sales_data['temp_key'].isin(
-                top_modalities_filtered)].copy()
-            df_filtered_top_modalities.drop(columns=['temp_key'], inplace=True)
-
-            if df_filtered_top_modalities.empty:
-                return go.Figure().add_annotation(
-                    text="Nenhum dado suficiente encontrado para as top modalidades por tipo de parceiro mensalmente.",
-                    xref="paper", yref="paper", x=0.5, y=0.5,
-                    showarrow=False, font=dict(size=16)
-                )
-
-            fig = px.line(
-                df_filtered_top_modalities,
-                x='MES_ANO',
-                y='Vendas',
-                color='NIVEL',
-                facet_col='TIPO_PARCERIA',
-                facet_col_wrap=2,
-                title=f'Evolução Mensal das Top {top_n_modalities} Modalidades por Tipo de Parceiro',
-                labels={'MES_ANO': 'Mês/Ano',
-                        'Vendas': 'Número de Vendas', 'NIVEL': 'Modalidade'},
-                line_shape='spline',
-                markers=True,
-                color_discrete_sequence=px.colors.qualitative.Bold
-            )
-
-            fig.update_layout(
-                xaxis_title='Mês/Ano',
-                yaxis_title='Número de Vendas',
-                hovermode='x unified',
-                height=700,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom",
-                            y=1.02, xanchor="right", x=1),
-                xaxis=dict(tickangle=45)
-            )
-            fig.for_each_annotation(lambda a: a.update(
-                text=a.text.split("=")[-1]))  # Limpa o título da faceta
-
-            return fig
-        except Exception as e:
-            st.error(
-                f"Erro ao gerar o gráfico de evolução mensal das modalidades por parceiro: {str(e)}")
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar o gráfico de evolução mensal das modalidades por parceiro: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    # Métodos para análise de vendas
-    def create_sales_partnership_pie(self, vendas_df: pd.DataFrame, selected_partnerships: List[str] = None) -> go.Figure:
-        """Cria gráfico de pizza das vendas por tipo de parceria"""
-
-        if vendas_df.empty or 'TIPO_PARCERIA' not in vendas_df.columns:
-            return go.Figure()
-
-        try:
-            # Filtrar por parcerias selecionadas se especificado
-            if selected_partnerships:
-                vendas_filtered = vendas_df[vendas_df['TIPO_PARCERIA'].isin(
-                    selected_partnerships)]
-            else:
-                vendas_filtered = vendas_df.copy()
-
-            if vendas_filtered.empty:
-                return go.Figure()
-
-            # Contar vendas por tipo de parceria
-            vendas_por_parceria = vendas_filtered['TIPO_PARCERIA'].value_counts(
-            )
-
-            # Calcular percentuais
-            total_vendas = vendas_por_parceria.sum()
-            percentuais = (vendas_por_parceria / total_vendas * 100).round(1)
-
-            # Criar gráfico de pizza
-            fig = go.Figure(data=[go.Pie(
-                labels=vendas_por_parceria.index,
-                values=vendas_por_parceria.values,
-                textinfo='label+percent+value',
-                texttemplate='%{label}<br>%{percent}<br>(%{value} vendas)',
-                hovertemplate='<b>%{label}</b><br>' +
-                            'Vendas: %{value}<br>' +
-                            'Percentual: %{percent}<br>' +
-                            '<extra></extra>',
-                            marker=dict(
-                                colors=['#FF6B6B', '#4ECDC4',
-                                        '#45B7D1', '#96CEB4', '#FFEAA7'],
-                                line=dict(color='#FFFFFF', width=2)
-                            )
-                            )])
-
-            fig.update_layout(
-                title={
-                    'text': '<b>Distribuição de Vendas por Tipo de Parceria</b>',
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': {'size': 16}
-                },
-                height=500,
-                showlegend=True,
-                legend=dict(
-                    orientation="v",
-                    yanchor="middle",
-                    y=0.5,
-                    xanchor="left",
-                    x=1.05
-                )
-            )
-
-            return fig
-
-        except Exception as e:
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar gráfico: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    def create_sales_timeline_chart(self, vendas_df: pd.DataFrame, group_by: str = "modalidade",
-                                    selected_filters: List[str] = None) -> go.Figure:
-        """Cria gráfico de linha temporal das vendas"""
-
-        if vendas_df.empty or 'MES_ANO' not in vendas_df.columns:
-            return go.Figure()
-
-        try:
-            # Determinar coluna de agrupamento
-            group_column = 'NIVEL' if group_by == "modalidade" else 'TIPO_PARCERIA'
-
-            if group_column not in vendas_df.columns:
-                return go.Figure()
-
-            # Filtrar dados se especificado
-            if selected_filters:
-                vendas_filtered = vendas_df[vendas_df[group_column].isin(
-                    selected_filters)]
-            else:
-                vendas_filtered = vendas_df.copy()
-
-            if vendas_filtered.empty:
-                return go.Figure()
-
-            # Agrupar por mês e categoria
-            vendas_timeline = vendas_filtered.groupby(
-                ['MES_ANO', group_column]).size().reset_index(name='Vendas')
-
-            # Criar gráfico de linha
-            fig = px.line(
-                vendas_timeline,
-                x='MES_ANO',
-                y='Vendas',
-                color=group_column,
-                title=f'Evolução das Vendas por {group_by.title()}',
-                markers=True,
-                line_shape='spline'
-            )
-
-            fig.update_layout(
-                xaxis_title='Período (Mês/Ano)',
-                yaxis_title='Número de Vendas',
-                hovermode='x unified',
-                legend_title=group_by.title(),
-                height=500,
-                xaxis=dict(tickangle=45)
-            )
-
-            # Personalizar hover
-            fig.update_traces(
-                hovertemplate='<b>%{fullData.name}</b><br>' +
-                'Período: %{x}<br>' +
-                'Vendas: %{y}<br>' +
-                '<extra></extra>'
-            )
-
-            return fig
-
-        except Exception as e:
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar gráfico: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    def create_top_courses_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n: int = 10) -> go.Figure:
-        """Cria gráfico dos top cursos por tipo de parceria"""
-
-        if vendas_df.empty or 'CURSO' not in vendas_df.columns or 'TIPO_PARCERIA' not in vendas_df.columns:
-            return go.Figure()
-
-        try:
-            # Agrupar por parceria e curso
-            cursos_por_parceria = vendas_df.groupby(
-                ['TIPO_PARCERIA', 'CURSO']).size().reset_index(name='Vendas')
-
-            # Obter top cursos por parceria
-            top_cursos_parceria = []
-
-            for parceria in cursos_por_parceria['TIPO_PARCERIA'].unique():
-                parceria_data = cursos_por_parceria[cursos_por_parceria['TIPO_PARCERIA'] == parceria]
-                top_parceria = parceria_data.nlargest(top_n, 'Vendas')
-                top_cursos_parceria.append(top_parceria)
-
-            # Concatenar dados
-            dados_finais = pd.concat(top_cursos_parceria, ignore_index=True)
-
-            if dados_finais.empty:
-                return go.Figure()
-
-            # Criar gráfico de barras agrupadas
-            fig = px.bar(
-                dados_finais,
-                x='TIPO_PARCERIA',
-                y='Vendas',
-                color='CURSO',
-                title=f'Top {top_n} Cursos Mais Vendidos por Tipo de Parceria',
-                text='Vendas'
-            )
-
-            fig.update_layout(
-                xaxis_title='Tipo de Parceria',
-                yaxis_title='Número de Vendas',
-                legend_title='Cursos',
-                height=600,
-                showlegend=True,
-                legend=dict(
-                    orientation="v",
-                    yanchor="top",
-                    y=1,
-                    xanchor="left",
-                    x=1.02
-                ),
-                margin=dict(r=250)
-            )
-
-            fig.update_traces(textposition='outside')
-
-            return fig
-
-        except Exception as e:
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar gráfico: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    def create_modalities_by_month_chart(self, vendas_df: pd.DataFrame) -> go.Figure:
-        """Cria gráfico das modalidades mais vendidas por mês"""
-
-        if vendas_df.empty or 'MES_NOME' not in vendas_df.columns or 'NIVEL' not in vendas_df.columns:
-            return go.Figure()
-
-        try:
-            # Agrupar por mês e modalidade
-            modalidades_mes = vendas_df.groupby(
-                ['MES_NOME', 'NIVEL']).size().reset_index(name='Vendas')
-
-            # Obter top modalidade por mês
-            top_modalidades_mes = modalidades_mes.loc[modalidades_mes.groupby('MES_NOME')[
-                'Vendas'].idxmax()]
-
-            # Ordenar meses corretamente
-            ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-
-            top_modalidades_mes['MES_NOME'] = pd.Categorical(
-                top_modalidades_mes['MES_NOME'],
-                categories=ordem_meses,
-                ordered=True
-            )
-
-            top_modalidades_mes = top_modalidades_mes.sort_values('MES_NOME')
-
-            # Criar gráfico de barras
-            fig = px.bar(
-                top_modalidades_mes,
-                x='MES_NOME',
-                y='Vendas',
-                color='NIVEL',
-                title='Modalidade Mais Vendida por Mês',
-                text='Vendas',
-                color_discrete_sequence=px.colors.qualitative.Set3
-            )
-
-            fig.update_layout(
-                xaxis_title='Mês',
-                yaxis_title='Número de Vendas',
-                legend_title='Modalidade',
-                height=500,
-                xaxis=dict(tickangle=45)
-            )
-
-            fig.update_traces(textposition='outside')
-
-            return fig
-
-        except Exception as e:
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar gráfico: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    # Top Modalidades por Tipo de Parceiro
-    def create_top_modalities_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 5) -> go.Figure:
-        """
-        Cria um gráfico de barras facetado mostrando as top modalidades mais vendidas
-        por tipo de parceiro.
-        """
-        if vendas_df.empty or 'NIVEL' not in vendas_df.columns or 'TIPO_PARCERIA' not in vendas_df.columns:
-            return go.Figure().add_annotation(
-                text="Dados de modalidades ou tipo de parceria não disponíveis para este gráfico.",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=16)
-            )
-        try:
-            # Agrupar por tipo de parceria e modalidade
-            modalidades_por_parceria = vendas_df.groupby(
-                ['TIPO_PARCERIA', 'NIVEL']).size().reset_index(name='Vendas')
-
-            # Obter top N modalidades para cada tipo de parceiro
-            top_modalidades_por_parceria = []
-            for parceria_type in modalidades_por_parceria['TIPO_PARCERIA'].unique():
-                subset = modalidades_por_parceria[modalidades_por_parceria['TIPO_PARCERIA'] == parceria_type]
-                top_n = subset.nlargest(top_n_modalities, 'Vendas')
-                top_modalidades_por_parceria.append(top_n)
-
-            if not top_modalidades_por_parceria:
-                return go.Figure().add_annotation(
-                    text="Nenhum dado encontrado para as modalidades por tipo de parceria.",
-                    xref="paper", yref="paper", x=0.5, y=0.5,
-                    showarrow=False, font=dict(size=16)
-                )
-
-            df_top_modalities_partners = pd.concat(
-                top_modalidades_por_parceria, ignore_index=True)
-
-            fig = px.bar(
-                df_top_modalities_partners,
-                x='Vendas',
-                y='NIVEL',
-                color='NIVEL',
-                orientation='h',
-                facet_col='TIPO_PARCERIA',
-                facet_col_wrap=2,  # Número de colunas de facetas
-                title=f'Top {top_n_modalities} Modalidades Mais Vendidas por Tipo de Parceiro',
-                labels={'NIVEL': 'Modalidade', 'Vendas': 'Número de Vendas'},
-                color_discrete_sequence=px.colors.qualitative.Pastel  # Usar uma paleta mais suave
-            )
-
-            fig.update_layout(
-                # Ordenar modalidades dentro de cada faceta
-                yaxis={'categoryorder': 'total ascending'},
-                height=600,
-                showlegend=False  # A cor representa a modalidade, mas pode ser redundante com o rótulo Y
-            )
-            fig.for_each_annotation(lambda a: a.update(
-                text=a.text.split("=")[-1]))  # Limpa o título da faceta
-
-            fig.update_traces(texttemplate='%{x}', textposition='outside')
-
-            return fig
-        except Exception as e:
-            return go.Figure().add_annotation(
-                text=f"Erro ao gerar o gráfico de top modalidades por tipo de parceiro: {str(e)}",
-                xref="paper", yref="paper", x=0.5, y=0.5,
-                showarrow=False, font=dict(size=14, color="red")
-            )
-
-    # Modalidades Vendidas Mês a Mês por Tipo de Parceiro
     def create_modalities_monthly_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 3) -> go.Figure:
         """
         Cria um gráfico de linhas facetado mostrando a evolução mensal das vendas
