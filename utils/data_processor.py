@@ -210,11 +210,13 @@ class DataProcessor:
             columns_map = {
                 2: 'CPF',                    # Coluna C (índice 2)
                 3: 'ALUNO',                  # Coluna D (índice 3)
-                4: 'NIVEL',                  # Coluna E (índice 4)
-                5: 'CURSO',                  # Coluna F (índice 5)
-                9: 'DT_PAGTO',               # Coluna J (índice 9)
-                12: 'Qtd_Matriculas',        # Coluna M (índice 12)
-                13: 'TIPO_PARCERIA'          # Coluna N (índice 13)
+                4: 'CIDADE',                 # Coluna E (índice 4)
+                5: 'UF',                     # Coluna F (índice 5)
+                6: 'NIVEL',                  # Coluna G (índice 6)
+                7: 'CURSO',                  # Coluna H (índice 7)
+                11: 'DT_PAGTO',              # Coluna L (índice 11)
+                14: 'Qtd_Matriculas',        # Coluna O (índice 14)
+                15: 'TIPO_PARCERIA'          # Coluna P (índice 15)
             }
 
             # Criar DataFrame limpo
