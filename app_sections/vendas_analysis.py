@@ -58,7 +58,7 @@ class VendasAnalysis(BasePage):
                     st.metric("Cursos Únicos", cursos_unicos)
 
             # Métricas adicionais
-            if 'ANO' in vendas_df.columns and not vendas_df.empty:  # Adicionado 'and not vendas_df.empty'
+            if 'ANO' in vendas_df.columns and not vendas_df.empty:
                 col5, col6, col7, col8 = st.columns(4)
 
                 with col5:
@@ -207,8 +207,10 @@ class VendasAnalysis(BasePage):
                 vendas_por_mes_series = vendas_df.groupby('MES_NOME').size()
 
                 # Ordenar meses corretamente
-                ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                ordem_meses = ['Janeiro', 'Fevereiro', 'Março',
+                               'Abril', 'Maio', 'Junho',
+                               'Julho', 'Agosto', 'Setembro',
+                               'Outubro', 'Novembro', 'Dezembro']
 
                 vendas_por_mes_reindexado = vendas_por_mes_series.reindex(
                     ordem_meses, fill_value=0)
@@ -278,7 +280,7 @@ class VendasAnalysis(BasePage):
                 "Número de cursos por parceria:",
                 [5, 10, 15, 20],
                 index=1,
-                key="top_cursos_parceria_select"  # Adicionado key única
+                key="top_cursos_parceria_select"
             )
 
             try:
@@ -303,7 +305,7 @@ class VendasAnalysis(BasePage):
                     f"Erro ao gerar gráfico de modalidades por mês: {str(e)}")
 
         # Análise detalhada de modalidades
-        if 'NIVEL' in vendas_df.columns and not vendas_df.empty:  # Adicionado 'and not vendas_df.empty'
+        if 'NIVEL' in vendas_df.columns and not vendas_df.empty:
             st.subheader("📋 Ranking de Modalidades")
 
             modalidades_ranking = vendas_df['NIVEL'].value_counts(
@@ -326,14 +328,10 @@ class VendasAnalysis(BasePage):
         else:
             st.info("Dados de modalidades não disponíveis para ranking.")
 
-        # --- NOVOS GRÁFICOS SOLICITADOS ---
-        st.markdown("---")  # Separador visual
+        st.markdown("---")
 
-        # Inicializa as variáveis com um valor padrão para garantir que sempre existam.
-        # Caso as condições IFs abaixo sejam FALSAS, estas variáveis ainda estarão definidas.
-        # Valor padrão (ex: o do index=1 do selectbox)
         top_n_modalidades_parceiro = 5
-        # Valor padrão (ex: o do index=1 do selectbox)
+
         top_n_modalidades_mensal = 3
 
         # 1. Top Modalidades Mais Vendidas por Tipo de Parceiro
@@ -358,7 +356,7 @@ class VendasAnalysis(BasePage):
             st.info(
                 "Dados de modalidades ou tipo de parceiro não disponíveis para esta análise.")
 
-        st.markdown("---")  # Separador visual
+        st.markdown("---")
 
         # 2. Top Modalidades Vendidas Mês a Mês por Cada Tipo de Parceiro
         st.subheader("📈 Evolução Mensal das Modalidades por Parceiro")
@@ -385,7 +383,7 @@ class VendasAnalysis(BasePage):
     def _render_comparative_analysis(self, vendas_df):
         """Renderiza análise comparativa (gráficos de barras)"""
         st.subheader(
-            "⚖️ Análise Comparativa (Barras)")  # Renomeado para clareza
+            "⚖️ Análise Comparativa (Barras)")
 
         if vendas_df.empty:
             st.warning(
@@ -399,7 +397,7 @@ class VendasAnalysis(BasePage):
             tipo_comparacao = st.selectbox(
                 "Tipo de comparação:",
                 ["meses", "parcerias", "modalidades"],
-                key="tipo_comparacao_select",  # Adicionado key única
+                key="tipo_comparacao_select",
                 help="Escolha o que deseja comparar"
             )
 
@@ -421,7 +419,7 @@ class VendasAnalysis(BasePage):
             periodo1 = st.selectbox(
                 f"Primeiro {'mês' if tipo_comparacao == 'meses' else 'parceria' if tipo_comparacao == 'parcerias' else 'modalidade'}:",
                 opcoes,
-                key="periodo1_select"  # Adicionado key única
+                key="periodo1_select"
             )
 
         with col_comp3:
@@ -434,7 +432,7 @@ class VendasAnalysis(BasePage):
             periodo2 = st.selectbox(
                 f"Segundo {'mês' if tipo_comparacao == 'meses' else 'parceria' if tipo_comparacao == 'parcerias' else 'modalidade'}:",
                 opcoes_periodo2,
-                key="periodo2_select"  # Adicionado key única
+                key="periodo2_select"
             )
 
         # Gerar comparação
@@ -466,7 +464,7 @@ class VendasAnalysis(BasePage):
                     vendas_df[vendas_df['TIPO_PARCERIA'] == periodo1])
                 vendas_p2 = len(
                     vendas_df[vendas_df['TIPO_PARCERIA'] == periodo2])
-            else:  # modalidades
+            else:
                 vendas_p1 = len(vendas_df[vendas_df['NIVEL'] == periodo1])
                 vendas_p2 = len(vendas_df[vendas_df['NIVEL'] == periodo2])
 
@@ -507,14 +505,14 @@ class VendasAnalysis(BasePage):
                 "Dados de vendas não disponíveis para análise detalhada de comparação.")
             return
 
-        # NOVO: Filtro por Tipo de Parceria
+        # Filtro por Tipo de Parceria
         st.markdown("#### Filtrar por Tipo de Parceria")
         available_partnership_types = sorted(
             vendas_df['TIPO_PARCERIA'].dropna().unique().tolist())
         selected_partnership_types_filter = st.multiselect(
             "Selecione o(s) tipo(s) de parceria(s) a incluir:",
             available_partnership_types,
-            default=available_partnership_types,  # Seleciona todos por padrão
+            default=available_partnership_types,
             key="detailed_comp_partnership_filter"
         )
 
@@ -531,7 +529,7 @@ class VendasAnalysis(BasePage):
             st.info("Nenhum dado encontrado para os tipos de parceria selecionados.")
             return
 
-        st.markdown("---")  # Separador visual
+        st.markdown("---")
         st.markdown("#### Selecione os Critérios de Comparação")
 
         comparison_options = {
@@ -539,24 +537,17 @@ class VendasAnalysis(BasePage):
             "Mesmo Mês em Anos Diferentes": "mesmo_mes_anos_diferentes"
         }
 
-        # Removendo "Entre Parceiros Específicos (por Aluno)" para evitar complexidade com o novo filtro de parceria
-        # Se você quiser reintroduzi-lo, precisará de uma lógica mais complexa para combinar os filtros.
-        # "Entre Parceiros Específicos (por Aluno)": "parceiros_especificos",
-
         selected_comparison_type_label = st.selectbox(
             "Escolha o tipo de comparação:",
             list(comparison_options.keys()),
-            key="detailed_comp_type_select"  # Chave única para o selectbox
+            key="detailed_comp_type_select"
         )
 
         comparison_key = comparison_options[selected_comparison_type_label]
 
         item1 = None
         item2 = None
-        show_cumulative_checkbox = False  # Initialize the variable
-
-        # A lógica de seleção de item1 e item2 agora usa 'vendas_df_filtered_by_partnership'
-        # e é adaptada aos tipos de comparação restantes.
+        show_cumulative_checkbox = False
 
         if comparison_key == "tipos_parceria":
             # Aqui, as opções para seleção de tipo de parceria já são os tipos filtrados
@@ -610,7 +601,7 @@ class VendasAnalysis(BasePage):
             item1 = f"{selected_month} - {year1}"
             item2 = f"{selected_month} - {year2}"
 
-            # NOVO: Checkbox for cumulative
+            # Checkbox for cumulative
             st.markdown("---")
             show_cumulative_checkbox = st.checkbox(
                 "Ver evolução de vendas cumulativo", key="cumulative_sales_checkbox")
@@ -619,14 +610,13 @@ class VendasAnalysis(BasePage):
         if item1 and item2:
             try:
                 # Passa o DataFrame JÁ FILTRADO pelo tipo de parceria
-                # Pass the show_cumulative_checkbox state
                 fig = self.viz.create_detailed_sales_comparison_timeline(
                     vendas_df_filtered_by_partnership, comparison_key, item1, item2, show_cumulative=show_cumulative_checkbox)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(
                     f"Erro ao gerar o gráfico de comparação detalhada: {str(e)}")
-                st.exception(e)  # Para ver o stack trace completo
+                st.exception(e)
         else:
             st.info(
                 "Selecione os critérios de comparação acima para visualizar o gráfico.")
