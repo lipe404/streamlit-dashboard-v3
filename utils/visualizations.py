@@ -1549,7 +1549,7 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # NOVO MÉTODO: Top Modalidades por Tipo de Parceiro
+    # Top Modalidades por Tipo de Parceiro
     def create_top_modalities_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 5) -> go.Figure:
         """
         Cria um gráfico de barras facetado mostrando as top modalidades mais vendidas
@@ -1615,7 +1615,7 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # NOVO MÉTODO: Modalidades Vendidas Mês a Mês por Tipo de Parceiro
+    # Modalidades Vendidas Mês a Mês por Tipo de Parceiro
     def create_modalities_monthly_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 3) -> go.Figure:
         """
         Cria um gráfico de linhas facetado mostrando a evolução mensal das vendas
@@ -1956,7 +1956,7 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # NOVO MÉTODO: Top Modalidades por Tipo de Parceiro
+    # Top Modalidades por Tipo de Parceiro
     def create_top_modalities_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 5) -> go.Figure:
         """
         Cria um gráfico de barras facetado mostrando as top modalidades mais vendidas
@@ -2022,7 +2022,7 @@ class Visualizations:
                 showarrow=False, font=dict(size=14, color="red")
             )
 
-    # NOVO MÉTODO: Modalidades Vendidas Mês a Mês por Tipo de Parceiro
+    # Modalidades Vendidas Mês a Mês por Tipo de Parceiro
     def create_modalities_monthly_by_partnership_chart(self, vendas_df: pd.DataFrame, top_n_modalities: int = 3) -> go.Figure:
         """
         Cria um gráfico de linhas facetado mostrando a evolução mensal das vendas

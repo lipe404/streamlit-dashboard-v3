@@ -12,7 +12,6 @@ from app_sections.students_analysis import StudentsAnalysis
 from app_sections.alignment_analysis import AlignmentAnalysis
 from app_sections.vendas_analysis import VendasAnalysis
 from app_sections.relatorios_oportunidade import RelatoriosOportunidade
-# from app_sections.opportunity_analysis import OpportunityAnalysis
 
 # Imports externos
 import streamlit as st
