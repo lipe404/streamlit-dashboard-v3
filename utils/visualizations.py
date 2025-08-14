@@ -1,6 +1,5 @@
 import geopandas as gpd
 import json
-# from utils.geo_data_loader import GeoDataLoader # Removido se não estiver em uso para evitar erro de importação
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
