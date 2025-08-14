@@ -98,7 +98,7 @@ def load_and_process_data():
 
 def display_metrics(polos_df, municipios_df, alunos_df, vendas_df):
     """Exibe métricas principais"""
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         total_polos = len(polos_df) if not polos_df.empty else 0
@@ -112,11 +112,6 @@ def display_metrics(polos_df, municipios_df, alunos_df, vendas_df):
     with col3:
         total_municipios = len(municipios_df) if not municipios_df.empty else 0
         st.metric("Total de Municípios", total_municipios)
-
-    with col4:
-        total_alunos = alunos_df['CPF'].nunique(
-        ) if not alunos_df.empty and 'CPF' in alunos_df.columns else 0
-        st.metric("Total de Alunos (Amostragem 2025)", total_alunos)
 
 
 def main():

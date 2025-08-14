@@ -26,29 +26,113 @@ class AlignmentAnalysis(BasePage):
                 "Dados geográficos (Cidade/UF) não disponíveis nos dados de vendas.")
             return
 
+        # FILTRAR DADOS GEOGRÁFICOS VÁLIDOS
+        vendas_df_filtered = self._filter_valid_geographic_data(vendas_df)
+
+        if vendas_df_filtered.empty:
+            st.error(
+                "❌ Nenhum dado com informações geográficas válidas encontrado.")
+            return
+
+        # Exibir informações sobre a filtragem
+        self._display_data_filtering_info(vendas_df, vendas_df_filtered)
+
         # Métricas principais geográficas
-        self._display_geographic_metrics(vendas_df)
+        self._display_geographic_metrics(vendas_df_filtered)
 
         # Análise por Estado
-        self._render_state_analysis(vendas_df)
+        self._render_state_analysis(vendas_df_filtered)
 
         # Análise por Região
-        self._render_region_analysis(vendas_df)
+        self._render_region_analysis(vendas_df_filtered)
 
         # Análise de Cidades
-        self._render_city_analysis(vendas_df)
+        self._render_city_analysis(vendas_df_filtered)
 
         # Análise de Cursos por Localização
-        self._render_courses_by_location(vendas_df)
+        self._render_courses_by_location(vendas_df_filtered)
 
         # Análise de Modalidades por Localização
-        self._render_modalities_by_location(vendas_df)
+        self._render_modalities_by_location(vendas_df_filtered)
 
         # Análise de Parcerias por Localização
-        self._render_partnerships_by_location(vendas_df)
+        self._render_partnerships_by_location(vendas_df_filtered)
 
         # Mapa de Distribuição Geográfica
-        self._render_geographic_distribution_map(vendas_df, polos_df)
+        self._render_geographic_distribution_map(vendas_df_filtered, polos_df)
+
+    def _filter_valid_geographic_data(self, vendas_df):
+        """Filtra apenas dados com informações geográficas válidas"""
+        try:
+            # Criar cópia para não modificar o original
+            df_filtered = vendas_df.copy()
+
+            # Filtros para dados geográficos válidos
+            valid_conditions = []
+
+            # Filtrar UF válidos (não vazios, não nulos, não "Não identificado")
+            if 'UF' in df_filtered.columns:
+                valid_conditions.append(
+                    df_filtered['UF'].notna() &
+                    (df_filtered['UF'] != '') &
+                    (df_filtered['UF'].str.strip() != '') &
+                    (df_filtered['UF'].str.upper() != 'NÃO IDENTIFICADO') &
+                    (df_filtered['UF'].str.upper() != 'NAO IDENTIFICADO') &
+                    (df_filtered['UF'] != 'nan')
+                )
+
+            # Filtrar CIDADE válidas (não vazias, não nulas, não "Não identificado")
+            if 'CIDADE' in df_filtered.columns:
+                valid_conditions.append(
+                    df_filtered['CIDADE'].notna() &
+                    (df_filtered['CIDADE'] != '') &
+                    (df_filtered['CIDADE'].str.strip() != '') &
+                    (df_filtered['CIDADE'].str.upper() != 'NÃO IDENTIFICADO') &
+                    (df_filtered['CIDADE'].str.upper() != 'NAO IDENTIFICADO') &
+                    (df_filtered['CIDADE'] != 'nan')
+                )
+
+            # Filtrar REGIAO válidas (não "Não identificado")
+            if 'REGIAO' in df_filtered.columns:
+                valid_conditions.append(
+                    df_filtered['REGIAO'].notna() &
+                    (df_filtered['REGIAO'] != '') &
+                    (df_filtered['REGIAO'].str.strip() != '') &
+                    (df_filtered['REGIAO'].str.upper() != 'NÃO IDENTIFICADO') &
+                    (df_filtered['REGIAO'].str.upper() != 'NAO IDENTIFICADO') &
+                    (df_filtered['REGIAO'] != 'nan')
+                )
+
+            # Aplicar todos os filtros
+            if valid_conditions:
+                final_condition = valid_conditions[0]
+                for condition in valid_conditions[1:]:
+                    final_condition = final_condition & condition
+
+                df_filtered = df_filtered[final_condition]
+
+            return df_filtered
+
+        except Exception as e:
+            st.error(f"Erro ao filtrar dados geográficos: {str(e)}")
+            return pd.DataFrame()
+
+    def _display_data_filtering_info(self, original_df, filtered_df):
+        """Exibe informações sobre a filtragem de dados"""
+        total_original = len(original_df)
+        total_filtered = len(filtered_df)
+        removed_count = total_original - total_filtered
+        percentage_valid = (total_filtered / total_original *
+                            100) if total_original > 0 else 0
+
+        st.info(f"""
+        📊 **Filtragem de Dados Geográficos:**
+        - **Total de registros:** {total_original:,}
+        - **Registros com dados geográficos válidos:** {total_filtered:,} ({percentage_valid:.1f}%)
+        - **Registros removidos (sem dados geográficos):** {removed_count:,}
+        
+        ℹ️ *Esta análise considera apenas vendas com informações completas de Cidade, UF e Região.*
+        """)
 
     def _display_geographic_metrics(self, vendas_df):
         """Exibe métricas principais geográficas"""
@@ -79,7 +163,7 @@ class AlignmentAnalysis(BasePage):
 
     def _calculate_concentration_top5_states(self, vendas_df):
         """Calcula a concentração de vendas nos top 5 estados"""
-        if 'UF' not in vendas_df.columns:
+        if 'UF' not in vendas_df.columns or vendas_df.empty:
             return 0
 
         vendas_por_estado = vendas_df['UF'].value_counts()
@@ -92,7 +176,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise por estado"""
         st.subheader("🗺️ Análise por Estado")
 
-        if 'UF' not in vendas_df.columns:
+        if 'UF' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de UF não disponíveis.")
             return
 
@@ -228,7 +312,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise por região"""
         st.subheader("🌎 Análise por Região")
 
-        if 'REGIAO' not in vendas_df.columns:
+        if 'REGIAO' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de região não disponíveis.")
             return
 
@@ -286,7 +370,7 @@ class AlignmentAnalysis(BasePage):
 
     def _create_region_summary(self, vendas_df):
         """Cria resumo detalhado por região"""
-        if 'REGIAO' not in vendas_df.columns:
+        if 'REGIAO' not in vendas_df.columns or vendas_df.empty:
             return pd.DataFrame()
 
         try:
@@ -326,7 +410,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise por cidade"""
         st.subheader("🏙️ Análise por Cidade")
 
-        if 'CIDADE' not in vendas_df.columns:
+        if 'CIDADE' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de cidade não disponíveis.")
             return
 
@@ -416,7 +500,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise de cursos por localização"""
         st.subheader("📚 Cursos Mais Vendidos por Localização")
 
-        if 'CURSO' not in vendas_df.columns:
+        if 'CURSO' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de cursos não disponíveis.")
             return
 
@@ -502,7 +586,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise de modalidades por localização"""
         st.subheader("🎓 Modalidades por Localização")
 
-        if 'NIVEL' not in vendas_df.columns:
+        if 'NIVEL' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de modalidades não disponíveis.")
             return
 
@@ -562,7 +646,7 @@ class AlignmentAnalysis(BasePage):
         """Renderiza análise de parcerias por localização"""
         st.subheader("🤝 Parcerias por Localização")
 
-        if 'TIPO_PARCERIA' not in vendas_df.columns:
+        if 'TIPO_PARCERIA' not in vendas_df.columns or vendas_df.empty:
             st.warning("Dados de parcerias não disponíveis.")
             return
 
@@ -647,7 +731,7 @@ class AlignmentAnalysis(BasePage):
                 title='Distribuição de Vendas por Estado',
                 size_max=50,
                 projection='natural earth',
-                locationmode='geojson-id'  # Seria necessário um GeoJSON do Brasil
+                locationmode='geojson-id'
             )
 
             fig_map.update_geos(
